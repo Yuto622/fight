@@ -1,0 +1,2966 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- 単一ファイル版（tools/build-single.js が生成）。編集は各ソースを直してから再生成する -->
+<title>U-SPEAK TETRIS — テトリス × 英単語</title>
+<meta name="description" content="ガイドライン準拠のテトリスと、アルファベットのブロックで英単語を作って U-Speak コインを貯める WORD モード。">
+<style>
+/* U-SPEAK TETRIS — スタイル */
+:root {
+  --bg: #060913;
+  --bg-2: #0b1120;
+  --panel: rgba(18, 27, 48, 0.82);
+  --line: rgba(120, 150, 200, 0.18);
+  --text: #e6edf8;
+  --muted: #93a4c2;
+  --accent: #38bdf8;
+  --accent-2: #a855f7;
+  --gold: #fbbf24;
+  --green: #34d399;
+  --radius: 14px;
+  --font: "Trebuchet MS", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Segoe UI", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background:
+    radial-gradient(1100px 600px at 15% -10%, rgba(56, 189, 248, 0.16), transparent 60%),
+    radial-gradient(900px 600px at 95% 0%, rgba(168, 85, 247, 0.16), transparent 55%),
+    var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-text-size-adjust: 100%;
+}
+
+body { display: flex; flex-direction: column; min-height: 100vh; padding: 10px 14px 18px; gap: 10px; }
+
+/* ---------- ヘッダー ---------- */
+.topbar {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 10px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  backdrop-filter: blur(6px);
+}
+.brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+.brand-mark {
+  width: 38px; height: 38px; display: grid; place-items: center;
+  border-radius: 11px; font-weight: 800; font-size: 20px; color: #04121f;
+  background: linear-gradient(135deg, var(--accent), var(--green));
+  box-shadow: 0 6px 18px rgba(56, 189, 248, 0.35);
+}
+.brand-text h1 { margin: 0; font-size: 17px; letter-spacing: 0.10em; }
+.brand-text p { margin: 2px 0 0; font-size: 11px; color: var(--muted); }
+
+.modes { display: flex; gap: 8px; }
+.mode-btn {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  padding: 7px 14px; cursor: pointer; color: var(--muted);
+  background: rgba(10, 16, 32, 0.6);
+  border: 1px solid var(--line); border-radius: 10px;
+  font-family: inherit; transition: 0.16s;
+}
+.mode-btn strong { font-size: 13px; letter-spacing: 0.08em; }
+.mode-btn span { font-size: 10px; }
+.mode-btn:hover { color: var(--text); border-color: rgba(56, 189, 248, 0.5); }
+.mode-btn.is-active {
+  color: #04121f; border-color: transparent;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+}
+.mode-btn.is-active span { color: rgba(4, 18, 31, 0.75); }
+
+.diffs { display: flex; align-items: center; gap: 5px; }
+.diffs-label { white-space: nowrap; font-size: 9px; letter-spacing: 0.12em; color: var(--muted); margin-right: 2px; }
+.diff-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+  padding: 6px 10px; cursor: pointer; color: var(--muted);
+  background: rgba(10, 16, 32, 0.6); border: 1px solid var(--line); border-radius: 9px;
+  font-family: inherit; font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  transition: 0.16s; line-height: 1.25;
+}
+.diff-btn small { font-size: 9px; font-weight: 500; opacity: 0.8; }
+.diff-btn:hover { color: var(--text); border-color: rgba(52, 211, 153, 0.5); }
+.diff-btn.is-active { color: #04121f; border-color: transparent; background: linear-gradient(135deg, var(--green), #a3e635); }
+.diff-btn.is-active small { color: rgba(4, 18, 31, 0.75); }
+.diff-btn[data-difficulty="hard"].is-active { background: linear-gradient(135deg, #fbbf24, #fb923c); }
+.diff-btn[data-difficulty="expert"].is-active { background: linear-gradient(135deg, #fb7185, #ef4444); color: #fff; }
+.diff-btn[data-difficulty="expert"].is-active small { color: rgba(255, 255, 255, 0.8); }
+
+.wallet {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 14px; border-radius: 10px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.10);
+}
+.wallet .coin-icon { font-size: 20px; color: var(--gold); text-shadow: 0 0 12px rgba(251, 191, 36, 0.6); }
+.wallet b { display: block; font-size: 17px; color: var(--gold); line-height: 1; }
+.wallet small { font-size: 9px; color: var(--muted); letter-spacing: 0.09em; }
+
+.topbar-actions { display: flex; gap: 6px; }
+.icon-btn {
+  width: 36px; height: 36px; border-radius: 10px; cursor: pointer; font-size: 16px;
+  color: var(--text); background: rgba(10, 16, 32, 0.6);
+  border: 1px solid var(--line); transition: 0.16s;
+}
+.icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+.icon-btn.is-off { opacity: 0.4; }
+
+/* ---------- レイアウト ---------- */
+.layout {
+  flex: 1; display: grid; gap: 14px; align-items: start;
+  grid-template-columns: 190px minmax(0, auto) 250px;
+  justify-content: center;
+}
+.panel { display: flex; flex-direction: column; gap: 12px; }
+.box {
+  padding: 12px; border-radius: var(--radius);
+  background: var(--panel); border: 1px solid var(--line);
+}
+.box h2 {
+  margin: 0 0 9px; font-size: 10px; letter-spacing: 0.16em;
+  color: var(--muted); font-weight: 700;
+}
+.hint { margin: 7px 0 0; font-size: 10px; color: var(--muted); text-align: center; }
+.mini-canvas { display: block; margin: 0 auto; width: auto; max-width: 100%; }
+/* #hold / #next の高さは renderer.resize() が NEXT の表示数に合わせて決める */
+
+.stats { display: grid; gap: 7px; }
+.stat { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.stat span { font-size: 10px; letter-spacing: 0.10em; color: var(--muted); }
+.stat b { font-size: 17px; font-variant-numeric: tabular-nums; }
+
+/* ---------- 盤面 ---------- */
+.board-area { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.board-shell {
+  position: relative; height: min(70vh, 672px);
+  border-radius: 16px; padding: 6px;
+  background: linear-gradient(160deg, rgba(56, 189, 248, 0.35), rgba(168, 85, 247, 0.35));
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.55);
+}
+#board { display: block; height: 100%; width: auto; border-radius: 11px; background: var(--bg-2); }
+
+.toasts {
+  position: absolute; inset: 0; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 6px; overflow: hidden;
+}
+.toast {
+  padding: 7px 15px; border-radius: 999px; font-weight: 700; font-size: 15px;
+  color: #04121f; background: linear-gradient(135deg, #fde68a, var(--gold));
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+  animation: pop 1.5s ease-out forwards; white-space: nowrap;
+}
+.toast small { display: block; font-size: 10px; font-weight: 600; opacity: 0.78; }
+.toast.is-line { background: linear-gradient(135deg, #a5f3fc, var(--accent)); }
+.toast.is-chain { background: linear-gradient(135deg, #f0abfc, var(--accent-2)); color: #fff; }
+@keyframes pop {
+  0% { opacity: 0; transform: translateY(18px) scale(0.85); }
+  18% { opacity: 1; transform: translateY(0) scale(1.06); }
+  30% { transform: scale(1); }
+  78% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-46px) scale(0.95); }
+}
+
+.overlay {
+  position: absolute; inset: 6px; border-radius: 11px;
+  display: none; place-items: center; text-align: center; padding: 20px;
+  background: rgba(4, 8, 18, 0.9); backdrop-filter: blur(3px);
+}
+.overlay.is-open { display: grid; }
+.overlay h3 { margin: 0 0 8px; font-size: 24px; letter-spacing: 0.08em; }
+.overlay p { margin: 5px 0; font-size: 12px; color: var(--muted); line-height: 1.7; }
+.overlay .big { font-size: 34px; color: var(--gold); margin: 8px 0; font-variant-numeric: tabular-nums; }
+.overlay .result { display: grid; gap: 4px; margin: 12px 0; font-size: 12px; }
+.overlay .result div { display: flex; justify-content: space-between; gap: 18px; }
+.overlay .result b { color: var(--text); }
+.overlay .diff-line { color: var(--text); font-size: 12px; }
+.overlay .diff-line b { color: var(--green); letter-spacing: 0.08em; }
+.overlay .diff-table {
+  max-width: 260px; margin: 12px auto; padding: 10px 12px; border-radius: 10px;
+  background: rgba(10, 16, 32, 0.6); border: 1px solid var(--line);
+}
+.overlay .diff-table span { color: var(--muted); }
+
+.action-btn {
+  position: relative; width: 100%; padding: 10px 12px; cursor: pointer;
+  border-radius: 10px; border: 1px solid transparent; font-family: inherit;
+  font-size: 13px; font-weight: 700; color: #04121f;
+  background: linear-gradient(135deg, var(--accent), var(--green));
+  transition: 0.16s;
+}
+.action-btn:hover { filter: brightness(1.08); }
+.action-btn:disabled { opacity: 0.45; cursor: not-allowed; filter: grayscale(0.5); }
+.action-btn em { font-style: normal; opacity: 0.6; font-size: 11px; }
+.action-btn .cost {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  font-size: 11px; color: #3b2a00;
+}
+
+/* ---------- 単語パネル ---------- */
+.coin-row { display: flex; gap: 8px; margin-bottom: 9px; }
+.coin-row div {
+  flex: 1; padding: 7px 9px; border-radius: 10px;
+  background: rgba(251, 191, 36, 0.10); border: 1px solid rgba(251, 191, 36, 0.25);
+}
+.coin-row span { display: block; font-size: 9px; color: var(--muted); }
+.coin-row b { font-size: 17px; color: var(--gold); font-variant-numeric: tabular-nums; }
+
+.best-word {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 7px 9px; border-radius: 10px; margin-bottom: 9px;
+  background: rgba(52, 211, 153, 0.10); border: 1px solid rgba(52, 211, 153, 0.25);
+}
+.best-word span { font-size: 9px; color: var(--muted); }
+.best-word b { font-size: 15px; color: var(--green); letter-spacing: 0.06em; text-transform: uppercase; }
+
+.word-log { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; max-height: 290px; overflow-y: auto; }
+.word-log li {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 8px;
+  padding: 6px 9px; border-radius: 9px;
+  background: rgba(10, 16, 32, 0.55); border: 1px solid var(--line);
+  animation: slide-in 0.3s ease-out;
+}
+.word-log .w { font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; font-size: 13px; }
+.word-log .c { color: var(--gold); font-size: 12px; font-variant-numeric: tabular-nums; }
+.word-log .m { grid-column: 1 / -1; font-size: 10px; color: var(--muted); }
+@keyframes slide-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+
+.rule-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.rule-list li { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.rule-list b { color: var(--text); font-weight: 600; }
+
+/* ---------- タッチ操作 ---------- */
+.touch-controls { display: none; gap: 6px; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 420px; }
+.pad {
+  flex: 1 1 58px; min-height: 48px; border-radius: 11px; cursor: pointer;
+  font-size: 15px; font-weight: 700; color: var(--text);
+  background: rgba(18, 27, 48, 0.9); border: 1px solid var(--line);
+  font-family: inherit; user-select: none; -webkit-user-select: none; touch-action: manipulation;
+}
+.pad.is-down { background: rgba(56, 189, 248, 0.3); }
+.pad.wide { flex: 1 1 140px; }
+
+/* ---------- フッター ---------- */
+.keyhelp {
+  display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: center;
+  font-size: 10.5px; color: var(--muted);
+}
+kbd {
+  display: inline-block; padding: 1px 6px; margin-right: 3px; border-radius: 5px;
+  background: rgba(18, 27, 48, 0.9); border: 1px solid var(--line);
+  font-family: inherit; font-size: 10px; color: var(--text);
+}
+
+/* ---------- 設定 ---------- */
+.modal { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(3, 6, 14, 0.75); z-index: 40; }
+.modal[hidden] { display: none; }
+.modal-card {
+  width: min(400px, 92vw); padding: 20px; border-radius: 16px;
+  background: #0d1526; border: 1px solid var(--line);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.6);
+}
+.modal-card h2 { margin: 0 0 14px; font-size: 13px; letter-spacing: 0.16em; color: var(--muted); }
+.field { display: block; margin-bottom: 14px; font-size: 12px; }
+.field span { display: flex; justify-content: space-between; margin-bottom: 6px; color: var(--muted); }
+.field b { color: var(--accent); }
+.field input[type="range"] { width: 100%; accent-color: var(--accent); }
+.check { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 12px; color: var(--muted); }
+.check input { accent-color: var(--accent); width: 16px; height: 16px; }
+.modal-actions { margin-top: 16px; }
+
+/* ---------- モード切り替えでの表示制御 ---------- */
+body[data-mode="classic"] .word-only { display: none; }
+body[data-mode="word"] .classic-only { display: none; }
+
+/* ---------- レスポンシブ ---------- */
+@media (max-width: 1000px) {
+  .layout { grid-template-columns: 150px minmax(0, auto) 200px; gap: 10px; }
+  .board-shell { height: min(64vh, 560px); }
+}
+@media (max-width: 760px) {
+  body { padding: 8px 10px 14px; }
+  .diffs-label { display: none; }
+  .diff-btn { padding: 5px 8px; font-size: 10px; }
+  .diff-btn small { display: none; }
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .panel { flex-direction: row; flex-wrap: wrap; }
+  .panel .box { flex: 1 1 150px; }
+  .panel-left { order: 2; }
+  .board-area { order: 1; }
+  .panel-right { order: 3; }
+  .board-shell { height: min(58vh, 520px); }
+  .touch-controls { display: flex; }
+  .keyhelp { display: none; }
+  .word-log { max-height: 170px; }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">U</span>
+    <div class="brand-text">
+      <h1>U-SPEAK TETRIS</h1>
+      <p>テトリス × 英単語 — 長い単語ほど高得点</p>
+    </div>
+  </div>
+
+  <div class="modes" role="tablist" aria-label="モード選択">
+    <button class="mode-btn is-active" data-mode="classic" role="tab" aria-selected="true">
+      <strong>CLASSIC</strong><span>本家準拠テトリス</span>
+    </button>
+    <button class="mode-btn" data-mode="word" role="tab" aria-selected="false">
+      <strong>WORD</strong><span>英単語モード</span>
+    </button>
+  </div>
+
+  <div class="diffs" role="tablist" aria-label="難易度選択">
+    <span class="diffs-label">難易度</span>
+    <button class="diff-btn" data-difficulty="easy" role="tab" aria-selected="false">EASY<small>やさしい</small></button>
+    <button class="diff-btn is-active" data-difficulty="normal" role="tab" aria-selected="true">NORMAL<small>ふつう</small></button>
+    <button class="diff-btn" data-difficulty="hard" role="tab" aria-selected="false">HARD<small>むずかしい</small></button>
+    <button class="diff-btn" data-difficulty="expert" role="tab" aria-selected="false">EXPERT<small>鬼</small></button>
+  </div>
+
+  <div class="wallet" title="これまでに貯めた U-Speak コインの合計">
+    <span class="coin-icon">◉</span>
+    <div>
+      <b id="wallet-total">0</b>
+      <small>U-SPEAK COINS</small>
+    </div>
+  </div>
+
+  <div class="topbar-actions">
+    <button id="btn-sound" class="icon-btn" title="サウンド切り替え (M)">♪</button>
+    <button id="btn-settings" class="icon-btn" title="設定">⚙</button>
+  </div>
+</header>
+
+<main class="layout">
+  <!-- 左パネル -->
+  <aside class="panel panel-left">
+    <section class="box">
+      <h2>HOLD</h2>
+      <canvas id="hold" class="mini-canvas"></canvas>
+      <p class="hint">C / Shift</p>
+    </section>
+
+    <section class="box stats">
+      <div class="stat"><span>SCORE</span><b id="stat-score">0</b></div>
+      <div class="stat"><span>LEVEL</span><b id="stat-level">1</b></div>
+      <div class="stat"><span>LINES</span><b id="stat-lines">0</b></div>
+      <div class="stat"><span>TIME</span><b id="stat-time">0:00</b></div>
+      <div class="stat"><span>BEST</span><b id="stat-best">0</b></div>
+    </section>
+
+    <section class="box word-only" id="box-reroll">
+      <h2>LETTER REROLL</h2>
+      <button id="btn-reroll" class="action-btn">文字を引き直す <em>R</em><span class="cost" id="reroll-cost">◉15</span></button>
+      <p class="hint">落下中のミノの4文字を引き直します</p>
+    </section>
+  </aside>
+
+  <!-- 盤面 -->
+  <div class="board-area">
+    <div class="board-shell">
+      <canvas id="board"></canvas>
+      <div id="toasts" class="toasts" aria-live="polite"></div>
+      <div id="overlay" class="overlay"></div>
+    </div>
+    <div class="touch-controls" id="touch">
+      <button class="pad" data-action="left">◀</button>
+      <button class="pad" data-action="rotateCCW">⟲</button>
+      <button class="pad" data-action="softDrop">▼</button>
+      <button class="pad" data-action="rotateCW">⟳</button>
+      <button class="pad" data-action="right">▶</button>
+      <button class="pad wide" data-action="hardDrop">HARD DROP</button>
+      <button class="pad" data-action="hold">HOLD</button>
+      <button class="pad word-only" data-action="reroll">REROLL</button>
+    </div>
+  </div>
+
+  <!-- 右パネル -->
+  <aside class="panel panel-right">
+    <section class="box">
+      <h2>NEXT</h2>
+      <canvas id="next" class="mini-canvas"></canvas>
+    </section>
+
+    <section class="box word-only" id="box-words">
+      <h2>WORDS</h2>
+      <div class="coin-row">
+        <div><span>この試合</span><b id="run-coins">0</b></div>
+        <div><span>単語数</span><b id="run-words">0</b></div>
+      </div>
+      <div class="best-word" id="best-word">
+        <span>最長単語</span>
+        <b>—</b>
+      </div>
+      <ul id="word-log" class="word-log"></ul>
+    </section>
+
+    <section class="box classic-only" id="box-classic-info">
+      <h2>SCORING</h2>
+      <ul class="rule-list">
+        <li><span>SINGLE</span><b>100 × Lv</b></li>
+        <li><span>DOUBLE</span><b>300 × Lv</b></li>
+        <li><span>TRIPLE</span><b>500 × Lv</b></li>
+        <li><span>TETRIS</span><b>800 × Lv</b></li>
+        <li><span>T-SPIN</span><b>400〜1600 × Lv</b></li>
+        <li><span>B2B</span><b>× 1.5</b></li>
+        <li><span>COMBO</span><b>50 × combo × Lv</b></li>
+        <li><span>PERFECT</span><b>+800〜3200</b></li>
+      </ul>
+    </section>
+  </aside>
+</main>
+
+<footer class="keyhelp">
+  <span><kbd>←</kbd><kbd>→</kbd> 移動</span>
+  <span><kbd>↓</kbd> ソフトドロップ</span>
+  <span><kbd>Space</kbd> ハードドロップ</span>
+  <span><kbd>↑</kbd>/<kbd>X</kbd> 右回転</span>
+  <span><kbd>Z</kbd> 左回転</span>
+  <span><kbd>Q</kbd> 180°</span>
+  <span><kbd>C</kbd> ホールド</span>
+  <span><kbd>R</kbd> 文字引き直し</span>
+  <span><kbd>P</kbd> ポーズ</span>
+</footer>
+
+<!-- 設定 -->
+<div id="settings" class="modal" hidden>
+  <div class="modal-card">
+    <h2>SETTINGS</h2>
+    <label class="field">
+      <span>DAS（横溜め）<b id="das-value">150</b> ms</span>
+      <input id="das" type="range" min="40" max="300" step="5" value="150">
+    </label>
+    <label class="field">
+      <span>ARR（連射間隔）<b id="arr-value">33</b> ms</span>
+      <input id="arr" type="range" min="0" max="120" step="1" value="33">
+    </label>
+    <label class="field">
+      <span>開始レベル（1 なら難易度の既定値）<b id="level-value">1</b></span>
+      <input id="start-level" type="range" min="1" max="15" step="1" value="1">
+    </label>
+    <label class="check"><input id="ghost" type="checkbox" checked> ゴーストを表示</label>
+    <div class="modal-actions">
+      <button id="settings-close" class="action-btn">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Auto-generated word list for U-SPEAK TETRIS / 単語辞書（自動生成）
+ * Source: google-10000-english (public domain / Google Trillion Word Corpus),
+ * filtered to 3-8 letter a-z entries, hand-cleaned (abbreviations and web junk removed),
+ * and extended with a learner vocabulary set (animals, colours, food, school, verbs).
+ * Stored as space-separated strings grouped by length to keep the payload small.
+ */
+window.USPEAK_WORD_DATA = {
+  3:
+    "ace act add ado age ago aid ail aim air ale all amp and ant any ape apt arc are ark arm art ash " +
+    "ask ate awe axe aye bad bag ban bar bat bay bed bee beg bet bid big bin bit boa bob bog bow box " +
+    "boy bra bud bug bum bun bus but buy bye cab cad cam can cap car cat caw cob cod cog con coo cop " +
+    "cot cow coy cry cub cue cup cur cut dad dam day den dew did die dig dim din dip doe dog don dot " +
+    "dry dub dud due dug duo dye ear eat ebb eel egg ego elf elk elm emu end eve ewe eye fab fad fan " +
+    "far fat fax fed fee few fig fin fir fit fix flu fly foe fog for fox fry fun fur gag gal gap gas " +
+    "gel gem get gig gin got gum gun gut guy gym had hag ham has hat hay hem hen her hew hex hey hid " +
+    "him hip his hit hob hoe hog hop hot how hub hue hug hum hut ice icy ill imp ink inn ion ire irk " +
+    "its ivy jab jam jar jaw jay jet jig job jog jot joy jug keg key kid kin kit lab lad lag lam lap " +
+    "law lax lay led leg let lid lie lip lit lob log lot low mad man map mat maw may men met mid mix " +
+    "mob mom mop mud mug mum nag nap net new nib nil nip nod nor not now nun nut oak oar oat odd ode " +
+    "off oft oil old one opt orb ore our out owe owl own pad pal pan par pat paw pay pea peg pen pet " +
+    "pew pie pig pin pit ply pod pop pot pro pry pub pug pun pup put rag ram ran rap rat raw ray red " +
+    "rib rid rig rim rip rob rod roe rot row rub rug rum run rut rye sad sag sap sat saw sax say sea " +
+    "see set sew she shy sin sip sir sit six ski sky sly sob sod son sow soy spa spy sty sub sue sum " +
+    "sun sup tab tag tan tap tar tax tea ten the thy tie tin tip toe ton too top tot tow toy try tub " +
+    "tug two urn use van vat vet via vie vow wag wan war was wax way web wed wee wet who why wig win " +
+    "wit woe wok won woo wow wry yak yam yap yes yet yew you zap zip zoo",
+  4:
+    "able acid acne acre acts adds aged ages aids aims also alto anti apps arch area arms army arts " +
+    "asks atom aunt auto away axis babe baby back bags bald ball band bang bank bare barn bars base " +
+    "bass bath beam bean bear beat beds beef been beer bell belt bend bent best beta bias bids bike " +
+    "bill bind bird bite bits blah blog blow blue boat body bold bolt bomb bond bone book boom boot " +
+    "born boss both bowl boys bras buck bugs bulk bull burn bush busy buys buzz byte cafe cage cake " +
+    "calf call calm came camp cams cant cape caps carb card care carl cars cart casa case cash cast " +
+    "cats cave cell cent char chat chef chip ciao cite city clam clan clay clip club coal coat code " +
+    "coin cold come cook cool cope copy cord core cork corn cost cove crab crew crop crow cube cult " +
+    "cups cure cute cuts dame dare dark dash data date dawn days dead deaf deal dean dear debt deck " +
+    "deep deer demo deny desk dial dice died dies diet diff dirt disc dish disk dive dock does dogs " +
+    "doll dome done doom door dose dove down drag draw drew drop drug drum dual duck dude duke dumb " +
+    "dump dust duty each earl earn ears ease east easy echo eden edge edit eggs else ends epic euro " +
+    "even ever evil exam exit expo eyed eyes face fact fail fair fake fall fame fans fare farm fast " +
+    "fate fawn fear feat feed feel fees feet fell felt file fill film find fine fire firm fish fist " +
+    "fits five flag flat flex flip flow flux foam fold folk font food fool foot fork form fort foul " +
+    "four free frog from fuel full fund funk gage gain gale game gang gaps gary gate gave gays gear " +
+    "geek gene gets gift girl give glad glen glow glue goal goat gods goes gold golf gone good gore " +
+    "grab grad gray grew grey grid grip grow gulf guns guru guys hack hair half hall halo hand hang " +
+    "hard harm hash hate hats have hawk head hear heat heel held help herb here hero hide high hill " +
+    "hint hire hist hits hold hole holy home hood hook hope horn hose host hour huge hull hung hunt " +
+    "hurt icon idea idle idol inch info inns into iron isle item jack jail jazz jets jews jobs join " +
+    "joke july jump june junk jury just keen keep kept keys kick kids kill kind king kiss kits knee " +
+    "knew knit know labs lace lack lady laid lake lamb lamp land lane last late lawn laws lazy lead " +
+    "leaf lean left legs lens less lets lies life lift like lime line link lion lips list live load " +
+    "loan lock logo logs lone long look loop lord lose loss lost lots loud love lows luck lung made " +
+    "mail main make male mall many maps mark mask mass mate math mats meal mean meat meet mega memo " +
+    "mens ment menu mere mesh mess meta mice mild mile milk mill mime mind mine mini mint miss mode " +
+    "mold mole moms mono mood moon more moss most move much must myth nail name navy near neck need " +
+    "neon nest news next nice nine node none noon norm nose note nova nuts oaks odds oils okay once " +
+    "ones only onto open oral ours oval oven over owns pace pack pads page paid pain pair pale palm " +
+    "park part pass past path pays peak pear peas peer pens pest pets pick pics pike pill pine ping " +
+    "pink pins pipe plan play plot plug plum plus poem poet pole poll polo poly pond pool poor pope " +
+    "pork port pose post pour pray prep pros pubs pull pump punk pure push puts quad quit quiz race " +
+    "rack rage raid rail rain rank rare rate rats rays read real rear reed reef reel rely rent rest " +
+    "rice rich ride ring ripe rise risk road rock role roll roof room root rope rose rows ruby rugs " +
+    "rule runs rush safe sage said sail sake sale salt same sand sara save says scan seal seas seat " +
+    "seed seek seem seen sees self sell semi send sent sets shed ship shoe shop shot show shut sick " +
+    "side sign silk sing sink site size skin skip slim slip slot slow snap snow soap sofa soft soil " +
+    "sold sole solo some song sons soon sort soul soup spam span spas spin spot star stay stem step " +
+    "stop stud such suit sure surf swan swap swim sync tabs tags tail take tale talk tall tank tape " +
+    "task taxi team tear tech teen tell temp tend tent term test text than that thee them then they " +
+    "thin this thou thus tide tied tier ties tile till time tiny tips tire toad told toll tone tons " +
+    "took tool tops tour town toys trap tray tree trek trim trio trip true tube tune turn twin type " +
+    "ugly undo unit unto upon urge used user uses utah vary vast very vice view visa void volt vote " +
+    "wage wait wake walk wall want ward ware warm wars wash watt wave ways weak wear weed week well " +
+    "went were west what when whom wide wife wild will wind wine wing wins wire wise wish with wolf " +
+    "wood wool word work worm worn wrap yard yarn yeah year yoga your zero zinc zone zoom",
+  5:
+    "aaron about above abuse acids acres actor acute adams added admin admit adobe adopt adult after " +
+    "again agent aging agree ahead aimed alarm album alert alias alice alien align alike alive allah " +
+    "allan allen allow alloy alone along alpha alter amber amend amino among angel anger angle angry " +
+    "anime annex annie apart apple apply april arbor areas arena argue arise armed armor array arrow " +
+    "aruba asian aside asked asset atlas audio audit autos avoid award aware awful babes bacon badge " +
+    "badly baker bands banks barry based bases basic basin basis batch baths beach beads beans bears " +
+    "beast beats began begin begun being belle belly below belts bench berry betty bible bikes bills " +
+    "billy bingo birds birth black blade blair blake blame blank blast blend bless blind blink block " +
+    "blogs blond blood bloom blues board boats bobby bonds bones bonus books boost booth boots booty " +
+    "bored bound boxed boxes brain brake brand brass brave bread break breed brian brick bride brief " +
+    "bring broad broke brook brown bruce brush bryan bucks buddy build built bunch bunny burke burns " +
+    "burst buses butts buyer bytes cabin cable cache cakes calls camel camps canal candy canon cards " +
+    "carey cargo carlo carol carry cases casey casio catch cause cedar cells cents chain chair chalk " +
+    "chaos charm chart chase cheap cheat check chess chest chevy chick chief child chile china chips " +
+    "choir chose chris chuck cindy cisco cited civic civil claim clara clark class clean clear clerk " +
+    "click cliff climb clips clock clone close cloth cloud clubs coach coast codes cohen coins colin " +
+    "colon color combo comes comic condo congo const coral corps costa costs could count court cover " +
+    "crack craft craig craps crash crazy cream creek crest crime crops cross crowd crown crude cubic " +
+    "curve cyber cycle czech daddy daily dairy daisy dance danny dated dates david davis deals dealt " +
+    "death debug debut decor delay delhi delta dense depot depth derby derek devil devon diana diane " +
+    "diary diego digit dirty disco discs disks dodge doing dolls donna donor donut doors doubt dover " +
+    "dozen draft drain drama drawn draws dream dress dried drill drink drive drops drove drugs drums " +
+    "drunk dryer dubai dutch dying dylan eagle early earth ebony ebook eddie edgar edges egypt eight " +
+    "elder elect elite ellen ellis elvis email emily empty ended enemy enjoy enter entry epson equal " +
+    "error essay essex euros evans event every exact exams excel exist extra faced faces facts fails " +
+    "fairy faith falls false fancy fares farms fatal fatty fault favor fears feeds feels fence ferry " +
+    "fever fewer fiber fibre field fifth fifty fight filed files films final finds fired fires firms " +
+    "first fixed fixes flags flame flash fleet flesh float flood floor flour flows floyd fluid flush " +
+    "flyer focal focus folks fonts foods force forge forms forth forty forum found frame frank fraud " +
+    "fresh front frost fruit fully funds funky funny fuzzy gains games gamma gates gauge genes genre " +
+    "ghana ghost giant gifts girls given gives glass glenn globe glory gnome goals going gonna goods " +
+    "gotta grace grade grain grams grand grant grape graph grass grave great greek green grill gross " +
+    "group grove grown grows guard guess guest guide guild hairy haiti hands handy happy harry haven " +
+    "hayes heads heard heart heath heavy helen hello helps hence henry herbs highs hills hindu hints " +
+    "hired hobby holds holes holly homes honda honey honor hoped hopes horse hosts hotel hours house " +
+    "human humor icons idaho ideal ideas image inbox index india indie inner input intel inter intro " +
+    "iraqi irish isaac islam issue italy items ivory jacob james jamie janet japan jason jeans jenny " +
+    "jerry jesse jesus jewel jimmy johns joins joint jokes jones joyce judge juice julia julie karen " +
+    "karma kathy katie keeps keith kelly kenny kenya kerry kevin kills kinda kinds kings kitty klein " +
+    "knife knock known knows koala kodak korea label labor laden lakes lamps lance lands lanes lanka " +
+    "large larry laser later latex latin laugh laura layer leads learn lease least leave leeds legal " +
+    "lemon leone level lewis lexus light liked likes limit linda lined lines links linux lions lists " +
+    "lived liver lives lloyd loads loans lobby local locks lodge logan logic login logos looks loops " +
+    "loose lopez lotus louis loved lover loves lower lucas lucia lucky lunch lycos lying lyric macro " +
+    "magic mails maine major maker makes males malta mambo manga mango manor maple march marco mardi " +
+    "maria marie mario marks marsh mason match maybe mayor mazda meals means meant medal media meets " +
+    "melon menus mercy merge merit merry metal meter metro meyer miami micro might milan miles mills " +
+    "minds mines minor minus mixed mixer model modem modes money monte month moore moral moses motel " +
+    "motor mount mouse mouth moved moves movie mpegs msgid multi music myers nails naked named names " +
+    "nancy nasty naval needs nepal nerve never newer newly niger night nikon noble nodes noise nokia " +
+    "north noted notes notre novel nurse nylon oasis occur ocean offer often older olive omaha omega " +
+    "onion opens opera orbit order organ oscar other otter ought outer owned owner oxide ozone packs " +
+    "pages paint pairs panda panel panic pants paper papua paris parks parts party pasta paste patch " +
+    "paths patio paxil peace peach pearl peers penny perry perth peter phase phone photo piano picks " +
+    "piece pills pilot pipes pitch pixel pizza place plain plane plans plant plate plays plaza plots " +
+    "poems point poker polar polls pools ports posts pound power press price pride prime print prior " +
+    "prize probe promo proof proud prove proxy pulse pumps punch puppy purse qatar queen query quest " +
+    "queue quick quiet quilt quite quote races racks radar radio raise rally ralph ranch randy range " +
+    "ranks rapid rated rates ratio reach reads ready realm rebel refer rehab relax relay remix renew " +
+    "reply reset retro rhode ricky rider rides ridge right rings risks river roads robin robot rocks " +
+    "rocky roger roles rolls roman rooms roots roses rouge rough round route rover royal rugby ruled " +
+    "ruler rules rural safer sagem saint salad salem sales sally salon salty samba samoa sandy santa " +
+    "sanyo sarah satin sauce saudi saved saver saves sbjct scale scarf scary scene scoop scope score " +
+    "scott scout screw scuba seats seeds seeks seems sells sends sense serum serve setup seven shade " +
+    "shaft shake shall shame shape share shark sharp sheep sheer sheet shelf shell shift shine ships " +
+    "shirt shock shoes shoot shops shore short shots shout shown shows sides sight sigma signs silly " +
+    "simon since singh sites sixth sixty sized sizes skill skins skirt skype slave sleep slide slope " +
+    "slots small smart smell smile smith smoke snake socks solar solid solve songs sonic sorry sorts " +
+    "souls sound south space spain spank sparc spare speak specs speed spell spend spent sperm spice " +
+    "spies spine split spoke spoon sport spots spray squad stack staff stage stake stamp stand stars " +
+    "start state stats stays steal steam steel steps steve stick still stock stone stood stops store " +
+    "storm story strap strip stuck study stuff style sudan sugar suite suits sunny super surge susan " +
+    "sweet swift swing swiss sword syria table tahoe taken takes tales talks tamil tampa tanks tapes " +
+    "tasks taste taxes teach teams tears teddy teens teeth tells terms terry tests texas texts thank " +
+    "thats theft their theme there these theta thick thing think third thong those three throw thumb " +
+    "tiger tight tiles timer times tions tired tires title toast today token tokyo tommy toner tones " +
+    "tools tooth topic total touch tough tours towel tower towns toxic trace track tract tracy trade " +
+    "trail train trans trash treat trees trend trial tribe trick tried tries trips trout truck truly " +
+    "trunk trust truth tubes tulsa tumor tuner tunes turbo turns twice twiki twins twist tyler types " +
+    "ultra uncle under union units unity until upper upset urban usage users using usual utils valid " +
+    "value valve vault vegas venue verde verse video views villa vinyl viral virus visit vista vital " +
+    "vocal voice volvo voted votes vsnet wages wagon wales walks walls wanna wants waste watch water " +
+    "watts waves wayne weeks weird wells welsh wendy whale whats wheat wheel where which while white " +
+    "whole whose wider width wiley winds wines wings wired wires witch wives woman women woods words " +
+    "works world worry worse worst worth would wound wrist write wrong wrote xanax xerox yacht yahoo " +
+    "yards years yeast yemen yield young yours youth yukon zdnet zebra zones",
+  6:
+    "abroad absent accent accept access across acting action active actors actual adding adidas " +
+    "adipex adjust adrian adults advert advice advise adware aerial affair affect afford afraid " +
+    "africa agency agenda agents agreed agrees alaska albany albert albums alerts alfred allied " +
+    "allows almost alpine alumni always amanda amazon ambien amount analog anchor andale andrea " +
+    "andrew angela angels angola animal annual answer anyone anyway apache apollo appeal appear " +
+    "approx arabia arabic arcade arctic argued arnold around arrest arrive arthur artist ashley " +
+    "asking aspect assess assets assign assist assume assure asthma asylum athens atomic attach " +
+    "attack attend auburn august aurora austin author autumn avatar avenue awards babies backed " +
+    "backup bailey baking ballet ballot banana banned banner barbie barely barnes barrel basics " +
+    "basket batman battle beauty beaver became become before begins behalf behind beings belief " +
+    "belize belkin belong berlin beside better beyond bhutan bidder bigger bikini binary bishop " +
+    "blacks blades blocks blonde boards bodies border boring bosnia boston bother bottle bottom " +
+    "bought boxing brakes branch brands brazil breach breaks breast breath breeds bridal bridge " +
+    "briefs bright brings broken broker bronze brooks browse brunei brutal bryant bubble budget " +
+    "buffer bufing builds bullet bumper bundle burden bureau buried burner burton butler butter " +
+    "button buyers buying cables cached called calvin camera campus canada cancel cancer candle " +
+    "cannon canvas canyon carbon career caring carlos carmen carpet carrot carter casino castle " +
+    "casual cattle caught caused causes cayman celebs celtic cement census center centre chains " +
+    "chairs chance change chapel charge charms charts cheats checks cheers cheese cheque cherry " +
+    "chicks choice choose chorus chosen christ chrome chubby church cialis cinema circle circus " +
+    "cities claims claire clarke clause clicks client clinic clocks closed closer closes clouds " +
+    "cloudy coated coding coffee collar colony colors column combat comedy comics coming commit " +
+    "common compaq comply condos config cooked cookie cooler cooper copied copies copper corner " +
+    "corpus cotton counts county couple coupon course courts cousin covers cowboy cradle crafts " +
+    "crayon create credit crimes crisis cruise cursor curtis curves custom cycles cyprus dakota " +
+    "dallas damage dancer danger daniel danish darwin dating dayton deadly dealer deaths debate " +
+    "debian decade decent decide deemed deeper deeply defeat defend define degree delays delete " +
+    "deluxe demand denial denied dennis dental denver depend deputy desert design desire detail " +
+    "detect device dialog diesel differ digest dining dinner direct dishes disney divide divine " +
+    "diving doctor dollar domain donald donate donkey donors dosage double dozens dragon dreams " +
+    "drinks driven driver drives dublin duncan durham during duties eagles earned easier easily " +
+    "easter eating ebooks edited editor edward effect effort eighty either eleven emails eminem " +
+    "empire employ enable ending energy engage engine enough ensure enters entire entity enzyme " +
+    "equity eraser errors escape essays estate ethics ethnic eugene europe events exceed except " +
+    "excess excuse exempt exists exotic expand expect expert export extend extent extras fabric " +
+    "facial facing factor failed fairly fallen family famous farmer faster father favors fellow " +
+    "female fetish fields figure filing filled filter finals finder finest finger finish finite " +
+    "fiscal fisher fitted flavor fleece flickr flight floors floppy floral flower flying folder " +
+    "follow forbes forced forces forest forget forgot formal format formed former forums fossil " +
+    "foster fought fourth framed frames france fraser freely freeze french friday fridge friend " +
+    "frozen fruits funded fusion future gained galaxy gaming garage garcia garden garlic garmin " +
+    "gather gender geneva genius genome genres gentle gently george gerald german giants gibson " +
+    "giving glance global gloves golden google gordon gospel gossip gothic gotten grades graham " +
+    "grande granny grants graphs gratis greece greene groove ground groups growth guards guests " +
+    "guided guides guilty guinea guitar guyana habits hacker hammer handed handle hansen happen " +
+    "harbor harder hardly harley harold harper harris harvey having hawaii hazard headed header " +
+    "health hearts heated heater heaven hebrew height helena helmet helped herald herbal hereby " +
+    "herein heroes hidden higher highly hiking hilton hiring hockey holdem holder hollow holmes " +
+    "honest honors hoping horror horses hosted hostel hotels hourly houses howard hudson hughes " +
+    "humans hunger hungry hunter hybrid ignore images immune impact import impose inches income " +
+    "indeed indian indoor infant inform injury inkjet inline inputs insect insert inside intake " +
+    "intend intent invest invite island israel issued issues italia italic itself itunes jacket " +
+    "jackie jaguar jeremy jersey jewish johnny joined jordan joseph joshua judges julian jungle " +
+    "junior justin kansas kelkoo kernel kettle kidney kijiji killed killer kinase knight knives " +
+    "korean kruger kuwait labels ladder ladies lambda laptop larger lately latest latina latino " +
+    "latter latvia launch lauren lawyer layers layout leader league leaves legacy legend lender " +
+    "length lenses leslie lesser lesson letter levels liable lights likely limits linear linked " +
+    "liquid listed listen little living loaded locale locate locked logged london lonely longer " +
+    "looked lookup losing losses louise lounge lovely lovers loving lowest luther luxury lyrics " +
+    "madrid magnet maiden mailed mainly makers makeup making malawi manage manner manual marble " +
+    "marcus margin mariah marina marine marion marked marker market martha martin marvel master " +
+    "mating matrix matter mature median medium meetup member memory mental mentor merely merger " +
+    "metals meters method metres metric mexico michel middle mighty miller milton mining minute " +
+    "mirror missed mixing mobile models modems modern modify module moment monaco monday monica " +
+    "monkey monroe months morgan morris moscow mostly motels mother motion motors mounts movers " +
+    "movies moving msgstr mumbai munich murder murphy murray muscle museum muslim mutual myrtle " +
+    "myself namely naples narrow nascar nasdaq nathan nation native nature nearby nearly needed " +
+    "needle nelson nested neural nevada newark newbie newest newman newton nextel nickel nicole " +
+    "nights ninety nissan nobody normal norman norton norway notice notify notion novels nudist " +
+    "number nurses nutten nvidia object obtain occurs offers office offset oldest oliver online " +
+    "opened optics option oracle orange orders oregon origin others ottawa outlet output owners " +
+    "oxford oxygen packed packet palace palmer pamela panama panels papers parade parcel parent " +
+    "parish parker partly passed passes pastor patent patrol payday paying paypal peeing pencil " +
+    "people pepper period permit person petite phases philip phones photos phrase picked pickup " +
+    "picnic pieces pierce pierre pillow pixels placed places plains planes planet plants plasma " +
+    "plates played player please pledge plenty plugin pocket poetry points poison poland police " +
+    "policy polish portal porter posing postal posted poster potato potter pounds powder powell " +
+    "powers prague praise prayer prefer prefix pretty priced prices priest prince prints prison " +
+    "prizes profit prompt proper proved proven prozac public pubmed puerto pulled pupils purple " +
+    "pursue pushed puzzle python quebec queens quoted quotes rabbit rachel racial racing radios " +
+    "radius raised raises random ranger ranges ranked rapids rarely rather rating ratios reader " +
+    "really realty reason rebate recall recent recipe record redeem reduce refers refine reform " +
+    "refund refuse regard reggae regime region reject relate relief reload remain remark remedy " +
+    "remind remote remove render rental repair repeat report rescue resist resort result resume " +
+    "retail retain return reveal review reward rhythm ribbon riders riding rights rising rivers " +
+    "robbie robert robots robust rocket rogers roland rolled roller ronald roster rotary rounds " +
+    "router routes rubber ruling runner russia rwanda sacred saddam safari safely safety sailor " +
+    "saints salary salmon sample samuel sandra saturn savage saving saying scales scared scenes " +
+    "scenic schema scheme school scored scores scotia screen script scroll sealed search season " +
+    "second secret sector secure seeing seeker seemed select seller senate sender senior sensor " +
+    "serbia serial series served server serves settle severe sewing sexual shades shadow shaped " +
+    "shapes shared shares sharon shaved sheets shield shirts shorts should showed shower sierra " +
+    "signal signed signup silent silver simple simply singer single sister skiing skills skirts " +
+    "sleeps sleepy sleeve slides slight slovak slowly smooth soccer social socket sodium solely " +
+    "solved sorted sought sounds source soviet spaces speaks spears speech speeds sphere spider " +
+    "spirit spoken sports spouse spread spring sprint square stable stages stamps stands starts " +
+    "stated states static status stayed steady stereo steven sticks sticky stocks stolen stones " +
+    "stored stores strain strand stream street stress strict strike string strips stroke strong " +
+    "struck struct stuart studio stupid styles stylus subaru submit subtle sudden suffer suited " +
+    "suites summer summit sunday sunset superb supper supply surely surrey survey sussex suzuki " +
+    "sweden switch sydney symbol syntax system tables tablet tackle tagged taiwan taking talent " +
+    "talked target tariff tattoo taught taylor techno temple tenant tender tennis terror tested " +
+    "thanks thehun themes theory thesis things thinks thirty thomas thongs though thread threat " +
+    "throat thrown throws thumbs ticket tigers timber timely timing tissue titans titled titles " +
+    "titten tobago toilet tomato tongue topics totals toward towers toyota tracks trader trades " +
+    "trails trains trance trauma travel travis treaty trembl trends trials tribal tribes tricks " +
+    "triple trivia troops trucks trusts trying tucson tuning tunnel turkey turned turner turtle " +
+    "twelve twenty typing uganda ultram unable unions unique united unless unlike unlock unwrap " +
+    "update upload urgent useful vacuum valium valley valued values valves varied varies vector " +
+    "velvet vendor venice venues verbal verify vernon versus vertex vessel victim victor videos " +
+    "vienna viewed viewer viking villas violin virgin virtue vision visits visual vocals voices " +
+    "volume voters voting voyuer wagner waiver walked walker wallet walnut walter wanted warned " +
+    "warner warren washer waters watson wealth weapon webcam weblog weekly weight wesley wheels " +
+    "whilst wicked widely willow wilson window winner winter wiring wisdom wishes within wizard " +
+    "womens wonder wooden worked worker worlds worthy wright writer writes yamaha yearly yellow " +
+    "yields zambia zoloft zoning zshops",
+  7:
+    "ability abraham absence academy accepts account accused achieve acquire acrobat acrylic actions " +
+    "actress adapted adapter adaptor address adopted advance adverse advised advisor affairs affects " +
+    "african against airfare airline airport alabama albania alberta alcohol algebra algeria alleged " +
+    "allergy allowed already altered amateur amazing ambient amended america amongst amounts ampland " +
+    "anaheim analyst analyze anatomy ancient andorra andreas andrews angeles animals another answers " +
+    "antenna anthony antigua antique antonio anxiety anybody anymore anytime apparel appeals appears " +
+    "applied applies approve aquatic archive arising arizona armenia arrange arrival arrived arrives " +
+    "article artists artwork aspects assault assists assumed assumes assured atlanta attacks attempt " +
+    "attract auction auditor austria authors average awarded awesome backing baghdad bahamas bahrain " +
+    "balance balloon bangkok banking banners baptist barbara bargain barrier baskets battery beaches " +
+    "bearing beatles because becomes bedding bedford bedroom beijing belarus belfast belgium beliefs " +
+    "believe belongs beneath benefit bennett bermuda bernard besides betting between beverly bicycle " +
+    "bidding biggest billing billion binding biology bizarre bizrate blanket blessed blocked blogger " +
+    "blowing boating bolivia booking boolean borders borough bottles boulder bouquet bowling bracket " +
+    "bradley brandon bridges briefly bristol britain british britney broader brokers brother brought " +
+    "browser budgets buffalo builder burning buttons cabinet calcium calgary calling cameras cameron " +
+    "camping candles capable capital capitol captain capture cardiac cardiff careers careful carried " +
+    "carrier carries carroll cartoon casinos casting catalog causing caution ceiling centers central " +
+    "centres century ceramic certain chamber chances changed changes channel chapter charged charger " +
+    "charges charity charles charlie charter chassis cheaper checked chelsea chester chicago chicken " +
+    "chinese choices chronic circles circuit citizen claimed clarity classes classic cleaner cleanup " +
+    "cleared clearly clients climate clinics clinton closely closest closing closure clothes cluster " +
+    "coaches coastal coating coleman collect college collins cologne colored columns combine comfort " +
+    "command comment commons compact company compare compete compile complex compute concept concern " +
+    "concert concord conduct confirm connect consent consist console consult contact contain content " +
+    "contest context control convert cookies cooking cooling copying cornell corners correct costume " +
+    "cottage council counsel counted counter country coupled couples coupons courage courier courses " +
+    "covered created creates creator credits cricket critics croatia crucial cruises crystal cuisine " +
+    "culture curious current custody customs cutting cycling damaged damages dancing dealers dealing " +
+    "deborah decades decided decimal declare decline default defects defence defense deficit defined " +
+    "defines degrees delayed deleted delight deliver demands denmark density depends deposit derived " +
+    "deserve designs desired desktop despite destiny destroy details detroit deutsch develop deviant " +
+    "devices devoted diagram diamond dietary digital diploma disable discuss disease display dispute " +
+    "distant diverse divided divorce doctors dollars dolphin domains donated douglas drawing dressed " +
+    "dresses drivers driving dropped durable dynamic earlier earning eastern eclipse ecology economy " +
+    "ecuador editing edition editors edwards effects efforts elderly elected electro elegant element " +
+    "elliott embassy emerald emperor enabled enables endless enemies engaged engines england english " +
+    "enhance enjoyed enlarge enquiry ensures entered entries episode equally erotica escorts essence " +
+    "estates estonia eternal ethical evening evident exactly examine example excerpt excited exclude " +
+    "execute exhaust exhibit existed expects expedia expense experts expired expires explain explore " +
+    "exports exposed express extends extract extreme fabrics factors factory faculty failing failure " +
+    "falling fantasy farmers farming fashion fastest fathers feature federal feeding feeling females " +
+    "ferrari fiction fifteen fighter figured figures filling filters finally finance finding findlaw " +
+    "fingers finland finnish firefox fishing fitness fitting flights florida florist flowers focused " +
+    "focuses folders folding follows footage foreign forests forever formats forming formula fortune " +
+    "forward founded founder framing francis freebsd freedom freight friends fujitsu funding funeral " +
+    "further futures gabriel gadgets gallery garbage gardens gateway gazette general generic genesis " +
+    "genetic genuine geology georgia germany getting gilbert giraffe glasgow glasses glucose goodbye " +
+    "gourmet grammar granted graphic gratuit gravity greater greatly gregory grenada griffin grocery " +
+    "grounds growing guitars habitat halifax hamburg hampton handled handles hanging happens harmful " +
+    "harmony harvard harvest hazards headers heading headset healing healthy hearing heather heating " +
+    "heavily heights helpful helping herself hewlett highest highway himself history hitachi hitting " +
+    "hobbies holders holding holiday holland hopkins horizon hormone hostels hosting hotmail hottest " +
+    "housing houston however hundred hungary hunting husband hygiene hyundai iceland ignored illegal " +
+    "illness imagine imaging impacts implied implies imports imposed improve include indexed indexes " +
+    "indiana indians indices induced infants initial injured inquire inquiry insects insider insight " +
+    "install instant instead insulin insured integer intense interim invalid invited invoice involve " +
+    "ireland islamic islands israeli italian jackets jackson jamaica january jeffrey jelsoft jessica " +
+    "jewelry johnson joining journal journey jumping justice justify karaoke katrina keeping kennedy " +
+    "kenneth keyword killing kingdom kissing kitchen knights knowing labeled landing laptops largely " +
+    "largest lasting latinas laundry lawsuit lawyers leaders leading learned leasing leather leaving " +
+    "lebanon lecture legally legends leisure lenders lending leonard lesbian lessons letters letting " +
+    "levitra lexmark liberal liberia liberty library licence license licking lighter limited lincoln " +
+    "lindsay linking listing livecam loading locally located locator locking lodging logging logical " +
+    "longest looking lottery luggage machine madison madness madonna magical mailing mailman managed " +
+    "manager mandate manuals mapping marilyn markers markets marking married martial massage massive " +
+    "masters matched matches matters matthew maximum meaning measure medical medline meeting melissa " +
+    "members memphis mention mercury message methods mexican michael midwest mileage million mineral " +
+    "minimal minimum minolta minutes miracle mirrors missile missing mission mistake mixture mobiles " +
+    "modular modules moldova moments monitor monster montana monthly morning morocco mothers mounted " +
+    "mozilla muscles museums musical muslims mustang myanmar mysimon myspace mystery namibia nations " +
+    "natural naughty nearest neither nervous network neutral newport niagara nigeria nirvana norfolk " +
+    "nothing noticed notices novelty nowhere nuclear numbers numeric nursery nursing oakland obesity " +
+    "objects observe obvious october offense offered officer offices offline olympic olympus ongoing " +
+    "ontario opening operate opinion opposed optical optimal optimum options ordered organic origins " +
+    "orlando orleans outcome outdoor outlets outline outlook outputs outside overall pacific package " +
+    "packard packets packing painful painted parents parking partial parties partner passage passing " +
+    "passion passive patches patents patient patrick pattern payable payment payroll penalty pendant " +
+    "pending penguin pension pentium peoples percent perfect perform perfume perhaps periods permits " +
+    "persian persons phantom philips phoenix phrases physics picking picture pioneer pirates placing " +
+    "planets planned planner plastic players playing pleased plugins pockets podcast pointed pointer " +
+    "pokemon polymer pontiac popular porsche portion possess postage posters posting pottery poultry " +
+    "poverty powered prairie prayers precise predict prefers premier premium prepaid prepare present " +
+    "pressed preston prevent preview pricing primary printed printer privacy private problem proceed " +
+    "process produce product profile profits program project promise promote prophet propose protect " +
+    "protein protest proudly provide publish pulling purpose pursuit pushing putting puzzles qualify " +
+    "quality quantum quarter queries quickly quizzes radical railway rainbow raising raleigh rangers " +
+    "ranging ranking rapidly ratings raymond reached reaches readers readily reading reality realize " +
+    "realtor reasons rebates rebecca rebound receipt receive recipes records recover redhead reduced " +
+    "reduces refined reflect reforms refresh refused regards regions regular related relates release " +
+    "relying remains remarks removal removed renewal rentals repairs replace replica replied replies " +
+    "reports reprint request require reserve resolve resorts respect respond restore results resumes " +
+    "retired retreat returns reunion reuters reveals revenge revenue reverse reviews revised rewards " +
+    "richard roberts rolling romance romania roughly routers routine routing royalty running runtime " +
+    "russell russian sailing samples samsung satisfy savings scanned scanner schemes scholar schools " +
+    "science scoring scratch screens scripts seafood seasons seating seattle seconds secrets section " +
+    "sectors secured seekers seeking segment sellers selling seminar senator sending senegal seniors " +
+    "sensors serious servers service serving session setting settled seventh several shadows shakira " +
+    "shannon sharing shelter sheriff sherman shipped shopper shorter shortly showers showing shuttle " +
+    "siemens signals signing silence silicon similar simpson singing singles sisters sitemap sitting " +
+    "skating skilled smaller smilies smoking society solaris soldier solomon solving somalia somehow " +
+    "someone soonest sources spanish spatial speaker special species specify spencer spirits sponsor " +
+    "springs spyware stadium stanley started starter startup stating station statute staying stephen " +
+    "stevens stewart sticker stomach stopped storage stories strange streams streets stretch strikes " +
+    "strings stripes student studied studies studios stuffed stylish subject sublime succeed success " +
+    "sucking suggest suicide summary sunrise support suppose supreme surface surfing surgeon surgery " +
+    "surname surplus surveys survive suspect swedish symbols systems tablets tactics talking targets " +
+    "teacher teaches teenage telecom telling tension terrace terrain testing textile texture theater " +
+    "theatre theorem therapy thereby thereof thermal thirsty thomson thought threads threats through " +
+    "thunder tickets tiffany timothy tobacco toddler tonight toolbar toolbox toolkit toronto torture " +
+    "toshiba totally touched touring tourism tourist towards tracked tracker tractor trading traffic " +
+    "tragedy trailer trained trainer transit travels treated tribune tribute trigger trinity triumph " +
+    "trouble trusted trustee tsunami tuesday tuition tunisia turkish turning twisted typical ukraine " +
+    "unified uniform unknown unusual updated updates upgrade uruguay usually utility utilize vaccine " +
+    "vampire vanilla variety various varying vatican vehicle vendors venture verizon vermont version " +
+    "vessels veteran victims victory vietnam viewers viewing village vincent vintage violent virtual " +
+    "viruses visible visited visitor vitamin voltage volumes waiting walking wallace wanting warming " +
+    "warning warrant warrior washing watched watches weapons wearing weather webcams webcast weblogs " +
+    "webpage website webster wedding weekend weights welcome welding welfare western whereas whether " +
+    "wichita william willing windows windsor winners winning winston wishing without witness workers " +
+    "working workout worried worship wrapped writers writing written wyoming younger zealand",
+  8:
+    "aberdeen abortion absolute abstract academic accepted accessed accident accounts accuracy " +
+    "accurate achieved acoustic acquired actively activity actually adapters adaptive addition " +
+    "adelaide adequate adjacent adjusted admitted adoption advanced advances advisors advisory " +
+    "advocacy advocate affected agencies aircraft airlines airplane airports alliance allowing " +
+    "although aluminum american americas analysis analysts analyzed analyzes anderson animated " +
+    "announce annoying annually answered antibody antiques anything anywhere apparent appeared " +
+    "appendix applying approach approval approved aquarium archived archives argument arkansas " +
+    "arranged arrested arrivals articles artistic asbestos assembly assessed assigned assisted " +
+    "assuming athletes athletic atlantic attached attacked attempts attended attitude attorney " +
+    "auckland auctions audience aviation avoiding bachelor bacteria balanced barbados bargains " +
+    "barriers baseball baseline basement basename bathroom becoming bedrooms beginner behavior " +
+    "believed believes benefits benjamin berkeley beverage biblical birthday bleeding blocking " +
+    "bloggers blogging bookings bookmark botswana boundary boutique bracelet bradford branches " +
+    "breaking breeding briefing brighton bringing brisbane broadway brochure brooklyn brothers " +
+    "browsers browsing brunette brussels budapest builders building bulgaria bulletin business " +
+    "cabinets cadillac calendar cambodia cameroon campaign campbell canadian canberra capacity " +
+    "captured carnival carolina caroline carriers carrying cartoons cashiers cassette catalogs " +
+    "catalyst category catering catholic cellular cemetery centered ceremony chairman chambers " +
+    "champion changing channels chapters chargers charging charming cheapest checking checkout " +
+    "chemical children choosing chrysler churches cingular circuits circular citation citizens " +
+    "civilian classics cleaners cleaning clearing clicking climbing clinical clothing clusters " +
+    "coaching cocktail collapse colleges colombia colonial colorado columbia columbus combined " +
+    "combines commands comments commerce commonly compared compiled compiler complete composed " +
+    "composer compound computed computer concepts concerns concerts conclude concrete conflict " +
+    "confused congress consider consists consoles constant consumer contacts contains contents " +
+    "contests continue contract contrary contrast controls cookbook cordless cornwall cosmetic " +
+    "costumes cottages councils counters counties counting courtesy coverage covering crawford " +
+    "creating creation creative creature criminal criteria critical crossing cultural cultures " +
+    "currency customer cylinder darkness database daughter davidson deadline dealtime december " +
+    "decision declared declined decrease deferred defining delaware delivers delivery democrat " +
+    "dentists deposits describe designed designer desktops detailed detected detector deutsche " +
+    "develops diabetes dialogue diameter diamonds directed directly director disabled disagree " +
+    "disaster disclose discount discover discrete diseases disorder dispatch displays disposal " +
+    "disputes distance distinct district dividend division doctrine document domestic dominant " +
+    "donation download downtown drainage dramatic drawings dressing drilling drinking duration " +
+    "dynamics earliest earnings earrings economic editions edmonton educated egyptian election " +
+    "electric electron elements elephant eligible embedded emerging emirates emission emotions " +
+    "emphasis employed employee employer enabling enclosed encoding endorsed engaging engineer " +
+    "enhanced enjoying enormous enrolled ensemble ensuring entering entirely entities entitled " +
+    "entrance envelope epinions episodes equality equation equipped ericsson estimate ethernet " +
+    "ethiopia european evaluate everyday everyone evidence examined examines examples exchange " +
+    "exciting excluded executed exercise exhibits existing expanded expansys expected expenses " +
+    "explains explicit explorer exposure extended exterior external fabulous facility failures " +
+    "familiar families favorite featured features february feedback feelings festival fighters " +
+    "fighting filename finances findings finished fioricet firewall firewire firmware fixtures " +
+    "flashers flashing flexible floating flooring florence florists focusing followed football " +
+    "footwear forecast forestry formerly fountain fraction franklin freeware frequent friendly " +
+    "frontier function gambling gamecube gamespot gasoline gathered generate generous genetics " +
+    "geometry glossary gorgeous governor graduate graphics grateful greatest greeting guardian " +
+    "guidance hamilton handbags handbook handheld handling handmade happened hardware hardwood " +
+    "harrison hartford hawaiian headline hearings heritage highland highways hispanic historic " +
+    "holdings holidays homeland homeless homepage hometown homework honduras honolulu horrible " +
+    "hospital humanity humidity hundreds hydrogen identify identity illinois impaired imperial " +
+    "imported improved incident included includes incoming increase incurred indicate indirect " +
+    "industry infected infinite informal informed infrared injuries innocent inserted insights " +
+    "inspired instance integral intended interact interest interior internal internet interval " +
+    "intimate intranet invasion investor invision involved involves isolated istanbul italiano " +
+    "japanese jennifer johnston jonathan journals judgment judicial junction juvenile kentucky " +
+    "keyboard keywords kingston knitting language latitude laughing launched launches lawrence " +
+    "learners learning lectures lesbians licensed licenses lifetime lightbox lighting likewise " +
+    "limiting lingerie listings literacy literary location logitech machines magazine magnetic " +
+    "mainland maintain majority malaysia maldives managers managing manitoba manually marathon " +
+    "margaret maritime marriage marriott marshall maryland matching material mattress maximize " +
+    "mcdonald measured measures medicaid medicare medicine medieval meetings membrane memorial " +
+    "memories mercedes merchant messages metadata metallic michelle michigan midlands midnight " +
+    "military millions minerals minimize minister ministry minority missions missouri mistakes " +
+    "mistress mitchell mobility modeling moderate modified moisture momentum monetary mongolia " +
+    "monitors monsters montreal moreover morrison mortgage motorola mountain mounting movement " +
+    "multiple musician national naturals navigate nebraska necklace negative neighbor netscape " +
+    "networks nicholas nickname nintendo nitrogen normally northern notebook notified november " +
+    "numerous observed observer obtained occasion occupied occurred offering officers official " +
+    "offshore oklahoma olympics openings operated operates operator opinions opponent opposite " +
+    "optimize optional ordering ordinary organize oriental oriented original outcomes outdoors " +
+    "outlined outreach overcome overhead overseas overview packages painting pakistan paradise " +
+    "paraguay parallel parental particle partners passport password patients patricia patterns " +
+    "pavilion payments peaceful pensions performs periodic personal peterson petition pharmacy " +
+    "phillips physical pictures pipeline planners planning plastics platform platinum playback " +
+    "playlist pleasant pleasure plumbing plymouth podcasts pointing policies polished politics " +
+    "portable portions portland portrait portugal position positive possible possibly postcard " +
+    "postings potatoes powerful practice precious pregnant premiere premises prepared presence " +
+    "presents preserve pressing pressure previews previous princess printers printing priority " +
+    "prisoner probably problems proceeds produced producer produces products profiles programs " +
+    "progress projects promised promises promoted promotes promptly propecia properly property " +
+    "proposal proposed prospect prostate proteins protocol provided provider provides province " +
+    "publicly purchase purposes pursuant quantity quarters question railroad rankings rational " +
+    "reaching reaction readings realized realtors received receiver receives recently receptor " +
+    "recorded recorder recovery reducing referral referred reflects refugees regarded regional " +
+    "register registry rejected relating relation relative released releases relevant reliable " +
+    "reliance religion remained remedies remember reminder removing rendered repeated replaced " +
+    "reported reporter reprints republic requests required requires research reseller reserved " +
+    "reserves resident resolved resource response restored restrict resulted retailer retained " +
+    "retrieve returned revealed revenues reviewed reviewer revision reynolds richards richmond " +
+    "ringtone robinson romantic roommate rotation roulette routines salaries salvador sampling " +
+    "sandwich sapphire saturday savannah scanners scanning scenario schedule scholars sciences " +
+    "scissors scotland scottish searched searches seasonal sections securely security segments " +
+    "selected semester seminars senators sentence separate sequence services sessions settings " +
+    "sexually shanghai shepherd shipment shipping shooting shoppers shopping shoulder showcase " +
+    "simpsons situated sleeping slightly slovakia slovenia smallest snapshot softball software " +
+    "soldiers solution somebody somerset somewhat southern spanking speakers speaking specials " +
+    "specific spectrum speeches spelling spending sponsors sporting springer staffing standard " +
+    "standing stanford starring starting stations statutes steering sterling stickers stopping " +
+    "straight stranger strategy strength strictly striking stronger strongly struggle students " +
+    "studying stunning subjects suburban suddenly suffered suggests suitable sullivan sunshine " +
+    "superior supplied supplier supplies supports supposed surfaces surgeons surgical surprise " +
+    "surround survival survivor swimming swingers switched switches symantec sympathy symphony " +
+    "symptoms syndrome synopsis syracuse talented tanzania targeted taxation teachers teaching " +
+    "template temporal terminal terrible textbook textiles thailand theaters theology theories " +
+    "thinking thinkpad thompson thorough thoughts thousand threaded thriller throwing thursday " +
+    "timeline titanium together tomatoes tomorrow township tracking trailers trainers training " +
+    "tramadol transfer transmit traveler travesti treasure treasury treating triangle tribunal " +
+    "trinidad tropical trustees tutorial ultimate umbrella universe unlikely unsigned untitled " +
+    "upcoming updating upgrades uploaded username vacation validity valuable variable variance " +
+    "vehicles velocity ventures verified versions vertical veterans victoria villages violence " +
+    "virginia visiting visitors vitamins warcraft warnings warranty warriors watching webshots " +
+    "websites weddings weekends weighted wellness whatever whenever wherever wildlife williams " +
+    "wireless wishlist workflow workshop worldcat wrapping writings yourself zimbabwe",
+};
+</script>
+<script>
+/* Japanese glosses for the most commonly formed words.
+ * 見つけた単語の意味をその場で表示するための対訳データ。
+ * ここに無い単語は意味なしで表示される（辞書判定には影響しない）。
+ */
+window.USPEAK_MEANINGS = {
+  ace: 'エース', act: '行動する', add: '加える', age: '年齢', aid: '助け', aim: '狙う',
+  air: '空気', ant: 'アリ', any: 'どれか', ape: '類人猿', arm: '腕', art: '芸術',
+  ask: '尋ねる', ate: '食べた', axe: 'おの', bad: '悪い', bag: 'かばん', bar: '棒',
+  bat: 'コウモリ／バット', bay: '湾', bed: 'ベッド', bee: 'ハチ', beg: '頼む', bet: '賭ける',
+  big: '大きい', bit: '少し', bow: 'おじぎ', box: '箱', boy: '男の子', bug: '虫',
+  bus: 'バス', buy: '買う', cab: 'タクシー', can: 'できる', cap: '帽子', car: '車',
+  cat: 'ねこ', cow: '牛', cry: '泣く', cub: '子ども（動物）', cup: 'コップ', cut: '切る',
+  dad: 'お父さん', day: '日', den: '巣穴', dew: '露', die: '死ぬ', dig: '掘る',
+  dog: 'いぬ', dot: '点', dry: '乾いた', due: '期限の', dye: '染める', ear: '耳',
+  eat: '食べる', egg: 'たまご', elf: '妖精', end: '終わり', eye: '目', fan: '扇風機／ファン',
+  far: '遠い', fat: '太った', fee: '料金', few: '少しの', fig: 'いちじく', fit: '合う',
+  fix: '直す', fly: '飛ぶ', fog: '霧', for: '〜のために', fox: 'きつね', fry: '揚げる',
+  fun: '楽しい', fur: '毛皮', gas: '気体', gem: '宝石', get: '手に入れる', gum: 'ガム',
+  gun: '銃', guy: '男', gym: '体育館', ham: 'ハム', hat: 'ぼうし', hen: 'めんどり',
+  her: '彼女の', hit: '打つ', hop: '跳ぶ', hot: '熱い', how: 'どのように', hug: '抱きしめる',
+  hut: '小屋', ice: '氷', ill: '病気の', ink: 'インク', inn: '宿', ion: 'イオン',
+  jam: 'ジャム', jar: 'びん', jet: 'ジェット機', job: '仕事', jog: 'ジョギングする', joy: '喜び',
+  key: 'かぎ', kid: '子ども', kit: '道具一式', lab: '実験室', law: '法律', lay: '置く',
+  leg: '足', let: '〜させる', lid: 'ふた', lie: 'うそ／横たわる', lip: 'くちびる', log: '丸太',
+  lot: 'たくさん', low: '低い', mad: '怒った', man: '男の人', map: '地図', mat: 'マット',
+  mix: '混ぜる', mom: 'お母さん', mud: '泥', mug: 'マグカップ', nap: '昼寝', net: '網',
+  new: '新しい', nod: 'うなずく', not: '〜でない', now: '今', nut: '木の実', oak: 'かしの木',
+  oil: '油', old: '古い', one: '１つ', our: '私たちの', out: '外へ', owl: 'ふくろう',
+  own: '自分の', pan: 'フライパン', pay: '払う', pea: 'えんどう豆', pen: 'ペン', pet: 'ペット',
+  pie: 'パイ', pig: 'ぶた', pin: 'ピン', pot: 'なべ', pup: '子いぬ', put: '置く',
+  ram: '雄羊', rat: 'ねずみ', raw: '生の', red: '赤', rib: 'あばら骨', rid: '取り除く',
+  rob: '奪う', row: '列', rub: 'こする', rug: 'じゅうたん', run: '走る', sad: '悲しい',
+  sat: '座った', saw: '見た／のこぎり', say: '言う', sea: '海', see: '見る', set: '置く',
+  she: '彼女', shy: '恥ずかしがりの', sit: '座る', six: '６', ski: 'スキー', sky: '空',
+  son: '息子', spy: 'スパイ', sun: '太陽', tag: '札', tan: '日焼け', tax: '税金',
+  tea: 'お茶', ten: '１０', the: 'その', tie: 'ネクタイ／結ぶ', tip: '先端／コツ', toe: 'つま先',
+  ton: 'トン', top: '一番上', toy: 'おもちゃ', try: 'やってみる', two: '２', use: '使う',
+  van: 'バン', war: '戦争', was: '〜だった', way: '道', web: 'ウェブ', wet: 'ぬれた',
+  who: 'だれ', why: 'なぜ', win: '勝つ', yes: 'はい', yet: 'まだ', you: 'あなた',
+  zoo: '動物園',
+
+  able: 'できる', baby: '赤ちゃん', back: '背中／戻る', ball: 'ボール', band: 'バンド',
+  bank: '銀行', bath: 'ふろ', bean: '豆', bear: 'くま', beat: '打つ', beef: '牛肉',
+  bell: 'ベル', bird: 'とり', bite: 'かむ', blue: '青', boat: 'ボート', body: '体',
+  bone: '骨', book: '本', boot: 'ブーツ', both: '両方', bowl: 'ボウル', cage: 'かご',
+  cake: 'ケーキ', call: '呼ぶ', calm: '静かな', camp: 'キャンプ', card: 'カード', care: '世話',
+  cash: '現金', cave: '洞くつ', city: '都市', clam: '貝', clay: '粘土', club: 'クラブ',
+  coal: '石炭', coat: 'コート', coin: 'コイン', cold: '寒い', come: '来る', cook: '料理する',
+  cool: '涼しい', copy: '写す', corn: 'とうもろこし', crab: 'かに', crow: 'カラス', cute: 'かわいい',
+  dark: '暗い', desk: '机', dish: '皿', door: 'ドア', down: '下へ', draw: '描く',
+  dream: '夢', drop: '落とす', duck: 'あひる', each: 'それぞれ', east: '東', easy: '簡単な',
+  face: '顔', fact: '事実', fall: '落ちる', farm: '農場', fast: '速い', feel: '感じる',
+  find: '見つける', fire: '火', fish: '魚', five: '５', flag: '旗', food: '食べ物',
+  foot: '足', four: '４', free: '自由な', frog: 'カエル', from: '〜から', game: 'ゲーム',
+  gate: '門', gift: 'おくりもの', girl: '女の子', give: '与える', glad: 'うれしい', goat: 'やぎ',
+  gold: '金', good: '良い', hair: '髪', half: '半分', hand: '手', hard: 'かたい／難しい',
+  have: '持つ', head: '頭', hear: '聞く', help: '助ける', hero: '英雄', hide: '隠す',
+  high: '高い', hill: '丘', home: '家', hope: '希望', horn: 'つの', hour: '時間',
+  huge: '巨大な', idea: '考え', jump: '跳ぶ', keep: '保つ', kind: '親切な', king: '王',
+  kiss: 'キス', know: '知る', lake: '湖', lamb: '子羊', lamp: 'ランプ', land: '土地',
+  late: '遅い', leaf: '葉', life: '命', like: '好き', line: '線', lion: 'ライオン',
+  long: '長い', look: '見る', love: '愛', luck: '運', mail: '郵便', many: '多くの',
+  meat: '肉', milk: 'ぎゅうにゅう', mind: '心', moon: '月', more: 'もっと', move: '動く',
+  name: '名前', near: '近い', neck: '首', need: '必要とする', nest: '巣', nice: 'すてきな',
+  nine: '９', nose: '鼻', note: 'メモ', okay: 'だいじょうぶ', open: '開ける', oven: 'オーブン',
+  pain: '痛み', pair: 'ペア', park: '公園', part: '部分', path: '小道', pear: '洋なし',
+  pink: 'ピンク', plan: '計画', play: '遊ぶ', pool: 'プール', poor: '貧しい', pork: 'ぶた肉',
+  rain: '雨', read: '読む', rice: 'ごはん', ride: '乗る', ring: '指輪', road: '道路',
+  rock: '岩', roof: '屋根', room: '部屋', root: '根', rose: 'ばら', safe: '安全な',
+  sail: '帆走する', salt: '塩', same: '同じ', sand: '砂', seat: '席', seed: '種',
+  ship: '船', shoe: 'くつ', shop: '店', show: '見せる', sing: '歌う', sink: '沈む',
+  skin: '皮ふ', sky: '空', slow: '遅い', snow: '雪', soap: 'せっけん', sofa: 'ソファ',
+  soft: 'やわらかい', song: '歌', soup: 'スープ', star: '星', stay: 'とどまる', step: '歩み',
+  stop: '止まる', swim: '泳ぐ', tail: 'しっぽ', take: '取る', talk: '話す', tall: '背の高い',
+  team: 'チーム', tear: '涙', tell: '伝える', tent: 'テント', test: 'テスト', text: '文章',
+  than: '〜より', that: 'あれ', them: '彼らを', then: 'それから', they: '彼ら', thin: '細い',
+  this: 'これ', time: '時間', tiny: '小さな', tire: 'タイヤ', toad: 'ヒキガエル', town: '町',
+  tree: '木', trip: '旅行', true: '本当の', turn: '回る', ugly: 'みにくい', view: '景色',
+  wait: '待つ', wake: '起きる', walk: '歩く', wall: 'かべ', want: '欲しい', warm: '暖かい',
+  wash: '洗う', wave: '波', weak: '弱い', wear: '着る', week: '週', well: 'よく',
+  west: '西', what: '何', when: 'いつ', wide: '広い', wild: '野生の', wind: '風',
+  wing: 'つばさ', wish: '願う', with: '〜と一緒に', wolf: 'おおかみ', wood: '木材', word: '単語',
+  work: '働く', worm: 'ミミズ', yard: '庭', year: '年', your: 'あなたの', zero: '０',
+
+  about: '〜について', above: '上に', angry: '怒った', apple: 'りんご', beach: '浜辺',
+  bread: 'パン', brave: '勇敢な', bring: '持ってくる', brown: '茶色', candy: 'キャンディ',
+  chair: 'いす', chalk: 'チョーク', cheap: '安い', check: '調べる', chess: 'チェス',
+  child: '子ども', clean: 'きれいな', clear: '明らかな', climb: '登る', clock: '時計',
+  cloud: '雲', color: '色', crazy: 'クレイジーな', cream: 'クリーム', dance: '踊る',
+  dream: '夢', dress: 'ドレス', drink: '飲む', drive: '運転する', eagle: 'ワシ',
+  early: '早い', earth: '地球', eight: '８', empty: '空の', enjoy: '楽しむ',
+  every: 'すべての', field: '野原', fight: '戦う', first: '最初の', floor: '床',
+  flour: '小麦粉', flower: '花', fruit: 'くだもの', funny: 'おもしろい', ghost: 'おばけ',
+  giant: '巨人', glass: 'ガラス', grape: 'ぶどう', grass: '草', great: 'すばらしい',
+  green: '緑', happy: '幸せな', heart: '心臓', heavy: '重い', horse: '馬',
+  house: '家', juice: 'ジュース', knife: 'ナイフ', large: '大きい', laugh: '笑う',
+  learn: '学ぶ', lemon: 'レモン', light: '光', lunch: '昼食', money: 'お金',
+  month: '月', mouse: 'ねずみ', mouth: '口', music: '音楽', night: '夜',
+  ocean: '海', panda: 'パンダ', paper: '紙', party: 'パーティー', peace: '平和',
+  peach: 'もも', pizza: 'ピザ', place: '場所', plant: '植物', quiet: '静かな',
+  quick: '速い', river: '川', round: '丸い', salad: 'サラダ', school: '学校',
+  sheep: 'ひつじ', shirt: 'シャツ', short: '短い', sleep: 'ねむる', small: '小さい',
+  smile: 'ほほえむ', snake: 'へび', space: '宇宙', spoon: 'スプーン', sport: 'スポーツ',
+  stone: '石', storm: 'あらし', story: '物語', study: '勉強する', sugar: '砂糖',
+  sweet: '甘い', table: 'テーブル', teach: '教える', thank: '感謝する', think: '考える',
+  three: '３', tiger: 'とら', today: '今日', train: '電車', water: '水',
+  whale: 'くじら', wheel: '車輪', white: '白', world: '世界', write: '書く',
+  young: '若い', zebra: 'シマウマ',
+
+  animal: '動物', autumn: '秋', banana: 'バナナ', basket: 'かご', bottle: 'びん',
+  bridge: '橋', butter: 'バター', camera: 'カメラ', candle: 'ろうそく', castle: '城',
+  cheese: 'チーズ', circle: '円', coffee: 'コーヒー', cookie: 'クッキー', dinner: '夕食',
+  doctor: '医者', family: '家族', father: '父', flower: '花', forest: '森',
+  friend: '友だち', future: '未来', garden: '庭', ground: '地面', guitar: 'ギター',
+  island: '島', jacket: '上着', jungle: 'ジャングル', letter: '手紙', listen: '聞く',
+  market: '市場', middle: '真ん中', minute: '分', monkey: 'さる', mother: '母',
+  number: '数', orange: 'オレンジ', parent: '親', pencil: 'えんぴつ', people: '人々',
+  pocket: 'ポケット', potato: 'じゃがいも', rabbit: 'うさぎ', river: '川', school: '学校',
+  season: '季節', silver: '銀', simple: '簡単な', singer: '歌手', sister: '姉妹',
+  spring: '春', square: '四角', street: '通り', strong: '強い', summer: '夏',
+  sunny: '晴れた', supper: '夕食', teacher: '先生', ticket: 'チケット', tomato: 'トマト',
+  travel: '旅行する', turtle: 'かめ', window: '窓', winter: '冬', yellow: '黄色',
+
+  animals: '動物たち', another: 'もう一つの', because: 'なぜなら', between: '〜の間',
+  brother: '兄弟', chicken: 'とり肉／にわとり', country: '国', dolphin: 'イルカ',
+  evening: '夕方', example: '例', holiday: '休日', kitchen: '台所', library: '図書館',
+  morning: '朝', nothing: '何も〜ない', picture: '絵', present: 'プレゼント',
+  problem: '問題', science: '科学', station: '駅', student: '生徒', subject: '教科',
+  weather: '天気', because: 'なぜなら',
+
+  birthday: '誕生日', children: '子どもたち', computer: 'コンピュータ', elephant: 'ぞう',
+  favorite: 'お気に入りの', hospital: '病院', mountain: '山', sandwich: 'サンドイッチ',
+  swimming: '水泳', together: '一緒に', tomorrow: '明日', vacation: '休暇',
+  question: '質問', baseball: '野球', football: 'サッカー', umbrella: 'かさ'
+};
+</script>
+<script>
+/* 単語モードのロジック / Word-mode logic.
+ * 文字袋（letter bag）・盤面の単語検出・U-Speak コインの計算をまとめる。 */
+(function (global) {
+  'use strict';
+
+  var MIN_LEN = 3;
+  var MAX_LEN = 8;
+
+  // ---- 辞書 -------------------------------------------------------------
+  var DICT = new Set();
+  var BY_LEN = {};
+  (function buildDictionary() {
+    var data = global.USPEAK_WORD_DATA || {};
+    Object.keys(data).forEach(function (len) {
+      var list = data[len].split(' ').filter(Boolean);
+      BY_LEN[len] = list;
+      for (var i = 0; i < list.length; i++) DICT.add(list[i]);
+    });
+  })();
+
+  function isWord(s) { return s.length >= MIN_LEN && DICT.has(s); }
+  function meaningOf(word) { return (global.USPEAK_MEANINGS || {})[word] || ''; }
+
+  // ---- 文字袋 -----------------------------------------------------------
+  // 英語の出現頻度をもとに、母音をやや多めにした重み付け分布。
+  var WEIGHTS = {
+    a: 90, b: 22, c: 42, d: 46, e: 118, f: 24, g: 26, h: 34, i: 82, j: 4,
+    k: 14, l: 52, m: 30, n: 66, o: 80, p: 32, q: 3, r: 68, s: 70, t: 76,
+    u: 42, v: 12, w: 18, x: 4, y: 26, z: 4
+  };
+  var VOWELS = ['a', 'e', 'i', 'o', 'u'];
+
+  // Scrabble 準拠の文字点数（得点計算の基礎）
+  var VALUES = {
+    a: 1, b: 3, c: 3, d: 2, e: 1, f: 4, g: 2, h: 4, i: 1, j: 8, k: 5, l: 1, m: 3,
+    n: 1, o: 1, p: 3, q: 10, r: 1, s: 1, t: 1, u: 1, v: 4, w: 4, x: 8, y: 4, z: 10
+  };
+
+  /* 母音バイアスごとに袋を作ってキャッシュする（bias が大きいほど母音が出やすい） */
+  var poolCache = Object.create(null);
+  function poolFor(bias) {
+    var key = String(bias);
+    if (poolCache[key]) return poolCache[key];
+    var pool = [];
+    Object.keys(WEIGHTS).forEach(function (ch) {
+      var weight = WEIGHTS[ch];
+      if (VOWELS.indexOf(ch) >= 0) weight = Math.max(1, Math.round(weight * bias));
+      for (var i = 0; i < weight; i++) pool.push(ch);
+    });
+    poolCache[key] = pool;
+    return pool;
+  }
+
+  var vowelBag = [];
+  VOWELS.forEach(function (v) { for (var i = 0; i < WEIGHTS[v]; i++) vowelBag.push(v); });
+
+  function randomLetter(bias) {
+    var pool = poolFor(bias);
+    return pool[(Math.random() * pool.length) | 0];
+  }
+  function randomVowel() { return vowelBag[(Math.random() * vowelBag.length) | 0]; }
+
+  /* 1ミノ分（4文字）を引く。母音が 0 個なら 1 つ差し替え、
+   * 母音が 4 個なら子音を 1 つ混ぜて、単語を作りやすい配分に整える。
+   * bias は難易度から渡す母音の出やすさ（1が標準）。 */
+  function drawLetters(count, bias) {
+    var n = count || 4;
+    var b = bias === undefined ? 1 : bias;
+    var out = [];
+    for (var i = 0; i < n; i++) out.push(randomLetter(b));
+    var vowels = out.filter(function (c) { return VOWELS.indexOf(c) >= 0; }).length;
+    if (vowels === 0) out[(Math.random() * n) | 0] = randomVowel();
+    if (vowels === n) {
+      var idx = (Math.random() * n) | 0;
+      var c;
+      do { c = randomLetter(b); } while (VOWELS.indexOf(c) >= 0);
+      out[idx] = c;
+    }
+    return out;
+  }
+
+  // ---- 盤面の単語検出 ---------------------------------------------------
+  /* 連続して埋まっているマスの並びから、長い単語を優先して切り出す。
+   * 同じ並びの中では重ならないように取るが、横の単語と縦の単語は
+   * 同じマスを共有してよい（クロスワードと同じ考え方）。 */
+  function scanRun(run, minLen) {
+    var found = [];
+    var i = 0;
+    while (i <= run.length - minLen) {
+      var matched = 0;
+      var max = Math.min(MAX_LEN, run.length - i);
+      for (var len = max; len >= minLen; len--) {
+        var s = '';
+        for (var k = 0; k < len; k++) s += run[i + k].letter;
+        if (isWord(s)) {
+          found.push({ word: s, cells: run.slice(i, i + len).map(function (c) { return [c.r, c.c]; }) });
+          matched = len;
+          break;
+        }
+      }
+      i += matched || 1;
+    }
+    return found;
+  }
+
+  function collectRuns(cellsInLine, minLen) {
+    var runs = [];
+    var cur = [];
+    for (var i = 0; i < cellsInLine.length; i++) {
+      var cell = cellsInLine[i];
+      if (cell && cell.letter) {
+        cur.push(cell);
+      } else {
+        if (cur.length >= minLen) runs.push(cur);
+        cur = [];
+      }
+    }
+    if (cur.length >= minLen) runs.push(cur);
+    return runs;
+  }
+
+  /* board: board[r][c] = null | {type, letter}
+   * minLen は難易度ごとの「成立する単語の最短文字数」（既定3）
+   * 戻り値: [{word, cells, dir}] */
+  function findWords(board, rows, cols, minLen) {
+    var min = Math.max(MIN_LEN, minLen || MIN_LEN);
+    var results = [];
+    var r, c, line;
+
+    for (r = 0; r < rows; r++) {
+      line = [];
+      for (c = 0; c < cols; c++) {
+        var cell = board[r][c];
+        line.push(cell ? { letter: cell.letter, r: r, c: c } : null);
+      }
+      collectRuns(line, min).forEach(function (run) {
+        scanRun(run, min).forEach(function (w) { w.dir = 'h'; results.push(w); });
+      });
+    }
+
+    for (c = 0; c < cols; c++) {
+      line = [];
+      for (r = 0; r < rows; r++) {
+        var cell2 = board[r][c];
+        line.push(cell2 ? { letter: cell2.letter, r: r, c: c } : null);
+      }
+      collectRuns(line, min).forEach(function (run) {
+        scanRun(run, min).forEach(function (w) { w.dir = 'v'; results.push(w); });
+      });
+    }
+
+    return results;
+  }
+
+  // ---- 得点 -------------------------------------------------------------
+  // 長い単語ほど一気に伸びる倍率。3文字=1倍、8文字=20倍。
+  var LENGTH_MULT = { 3: 1, 4: 2.5, 5: 5, 6: 9, 7: 14, 8: 20 };
+
+  function letterValue(word) {
+    var sum = 0;
+    for (var i = 0; i < word.length; i++) sum += VALUES[word[i]] || 1;
+    return sum;
+  }
+
+  function chainMultiplier(chain) {
+    if (chain <= 1) return 1;
+    if (chain === 2) return 1.5;
+    if (chain === 3) return 2;
+    if (chain === 4) return 3;
+    return 4;
+  }
+
+  /* 1単語あたりの U-Speak コイン */
+  function coinsFor(word, chain) {
+    var mult = LENGTH_MULT[word.length] || 20;
+    return Math.max(1, Math.round(letterValue(word) * mult * chainMultiplier(chain)));
+  }
+
+  global.Words = {
+    MIN_LEN: MIN_LEN,
+    MAX_LEN: MAX_LEN,
+    size: function () { return DICT.size; },
+    isWord: isWord,
+    meaningOf: meaningOf,
+    drawLetters: drawLetters,
+    findWords: findWords,
+    coinsFor: coinsFor,
+    letterValue: letterValue,
+    lengthMultiplier: function (len) { return LENGTH_MULT[len] || 20; },
+    chainMultiplier: chainMultiplier
+  };
+})(window);
+</script>
+<script>
+/* 難易度 / Difficulty presets.
+ * 落下速度だけでなく、WORD モード側の作りやすさ（最短文字数・母音の出やすさ・
+ * 引き直し代）と見返り（コイン倍率）もまとめて変える。 */
+(function (global) {
+  'use strict';
+
+  var LEVELS = {
+    easy: {
+      key: 'easy', name: 'EASY', jp: 'やさしい',
+      gravityScale: 0.5,     // 落下間隔の倍率（大きいほど速い）
+      lockDelay: 800,        // 接地してから固定されるまで(ms)
+      nextCount: 5,          // NEXT の表示数
+      ghost: true,
+      startLevel: 1,
+      minWordLength: 3,      // 成立する単語の最短文字数
+      vowelBias: 1.7,        // 母音の出やすさ（1が標準）
+      rerollCost: 8,
+      coinMult: 0.8,
+      scoreMult: 0.8,
+      note: '落下がゆっくりで、固定までの猶予も長い。母音が多く出るので単語を作りやすい。'
+    },
+    normal: {
+      key: 'normal', name: 'NORMAL', jp: 'ふつう',
+      gravityScale: 1, lockDelay: 500, nextCount: 5, ghost: true, startLevel: 1,
+      minWordLength: 3, vowelBias: 1, rerollCost: 15, coinMult: 1, scoreMult: 1,
+      note: 'ガイドライン標準。落下速度もロックディレイも本家どおり。'
+    },
+    hard: {
+      key: 'hard', name: 'HARD', jp: 'むずかしい',
+      gravityScale: 1.6, lockDelay: 400, nextCount: 3, ghost: true, startLevel: 3,
+      minWordLength: 3, vowelBias: 0.85, rerollCost: 25, coinMult: 1.4, scoreMult: 1.3,
+      note: 'レベル3スタート。NEXT は3個まで。そのぶんコインとスコアの倍率が上がる。'
+    },
+    expert: {
+      key: 'expert', name: 'EXPERT', jp: '鬼', 
+      gravityScale: 2.4, lockDelay: 250, nextCount: 1, ghost: false, startLevel: 5,
+      minWordLength: 4, vowelBias: 0.7, rerollCost: 40, coinMult: 2, scoreMult: 1.8,
+      note: 'レベル5スタート、ゴーストなし、NEXT は1個。単語は4文字以上でないと成立しない。'
+    }
+  };
+
+  var ORDER = ['easy', 'normal', 'hard', 'expert'];
+
+  global.Difficulty = {
+    ORDER: ORDER,
+    LEVELS: LEVELS,
+    get: function (key) { return LEVELS[key] || LEVELS.normal; },
+    /* 難易度ごとの差分を表示用にまとめる */
+    summary: function (key, mode) {
+      var d = this.get(key);
+      var rows = [
+        ['落下速度', '×' + d.gravityScale],
+        ['開始レベル', 'Lv ' + d.startLevel],
+        ['ロックディレイ', d.lockDelay + ' ms'],
+        ['NEXT', d.nextCount + ' 個'],
+        ['ゴースト', d.ghost ? 'あり' : 'なし']
+      ];
+      if (mode === 'word') {
+        rows.push(['成立する単語', d.minWordLength + ' 文字以上']);
+        rows.push(['母音の出やすさ', '×' + d.vowelBias]);
+        rows.push(['引き直し', '◉ ' + d.rerollCost]);
+        rows.push(['コイン倍率', '×' + d.coinMult]);
+      } else {
+        rows.push(['スコア倍率', '×' + d.scoreMult]);
+      }
+      return rows;
+    }
+  };
+})(window);
+</script>
+<script>
+/* テトリミノの形状・色・SRS（Super Rotation System）キックテーブル
+ * Tetromino shapes, colours and the guideline SRS wall-kick data.
+ * 画面座標系（y は下向き）で保持している。 */
+(function (global) {
+  'use strict';
+
+  // 各ミノは「size x size の箱」の中のセル座標で定義する（スポーン状態）。
+  var BASE = {
+    I: { size: 4, cells: [[0, 1], [1, 1], [2, 1], [3, 1]], color: '#22d3ee', dark: '#0e7490' },
+    J: { size: 3, cells: [[0, 0], [0, 1], [1, 1], [2, 1]], color: '#3b82f6', dark: '#1d4ed8' },
+    L: { size: 3, cells: [[2, 0], [0, 1], [1, 1], [2, 1]], color: '#f97316', dark: '#c2410c' },
+    O: { size: 2, cells: [[0, 0], [1, 0], [0, 1], [1, 1]], color: '#facc15', dark: '#a16207' },
+    S: { size: 3, cells: [[1, 0], [2, 0], [0, 1], [1, 1]], color: '#22c55e', dark: '#15803d' },
+    T: { size: 3, cells: [[1, 0], [0, 1], [1, 1], [2, 1]], color: '#a855f7', dark: '#7e22ce' },
+    Z: { size: 3, cells: [[0, 0], [1, 0], [1, 1], [2, 1]], color: '#ef4444', dark: '#b91c1c' }
+  };
+
+  var TYPES = ['I', 'J', 'L', 'O', 'S', 'T', 'Z'];
+
+  // 時計回り回転: (x, y) -> (size - 1 - y, x)
+  function rotateCells(cells, size) {
+    return cells.map(function (c) { return [size - 1 - c[1], c[0]]; });
+  }
+
+  var PIECES = {};
+  TYPES.forEach(function (type) {
+    var base = BASE[type];
+    var states = [base.cells];
+    for (var i = 1; i < 4; i++) states.push(rotateCells(states[i - 1], base.size));
+    PIECES[type] = {
+      type: type,
+      size: base.size,
+      color: base.color,
+      dark: base.dark,
+      states: states
+    };
+  });
+
+  // SRS キックテーブル（原典は y 上向き表記。ここでは y を反転して保持）
+  function flip(table) {
+    var out = {};
+    Object.keys(table).forEach(function (k) {
+      out[k] = table[k].map(function (o) { return [o[0], -o[1]]; });
+    });
+    return out;
+  }
+
+  var KICKS_JLSTZ = flip({
+    '0>1': [[0, 0], [-1, 0], [-1, 1], [0, -2], [-1, -2]],
+    '1>0': [[0, 0], [1, 0], [1, -1], [0, 2], [1, 2]],
+    '1>2': [[0, 0], [1, 0], [1, -1], [0, 2], [1, 2]],
+    '2>1': [[0, 0], [-1, 0], [-1, 1], [0, -2], [-1, -2]],
+    '2>3': [[0, 0], [1, 0], [1, 1], [0, -2], [1, -2]],
+    '3>2': [[0, 0], [-1, 0], [-1, -1], [0, 2], [-1, 2]],
+    '3>0': [[0, 0], [-1, 0], [-1, -1], [0, 2], [-1, 2]],
+    '0>3': [[0, 0], [1, 0], [1, 1], [0, -2], [1, -2]]
+  });
+
+  var KICKS_I = flip({
+    '0>1': [[0, 0], [-2, 0], [1, 0], [-2, -1], [1, 2]],
+    '1>0': [[0, 0], [2, 0], [-1, 0], [2, 1], [-1, -2]],
+    '1>2': [[0, 0], [-1, 0], [2, 0], [-1, 2], [2, -1]],
+    '2>1': [[0, 0], [1, 0], [-2, 0], [1, -2], [-2, 1]],
+    '2>3': [[0, 0], [2, 0], [-1, 0], [2, 1], [-1, -2]],
+    '3>2': [[0, 0], [-2, 0], [1, 0], [-2, -1], [1, 2]],
+    '3>0': [[0, 0], [1, 0], [-2, 0], [1, -2], [-2, 1]],
+    '0>3': [[0, 0], [-1, 0], [2, 0], [-1, 2], [2, -1]]
+  });
+
+  // 180度回転はガイドライン外。現代作品でよく使われる簡易テーブルを用いる。
+  var KICKS_180 = [[0, 0], [1, 0], [-1, 0], [2, 0], [-2, 0], [0, -1], [1, -1], [-1, -1], [0, 1]];
+
+  function kicksFor(type, from, to) {
+    if (type === 'O') return [[0, 0]];
+    if ((from + 2) % 4 === to) return KICKS_180;
+    var key = from + '>' + to;
+    return (type === 'I' ? KICKS_I : KICKS_JLSTZ)[key] || [[0, 0]];
+  }
+
+  global.Tetromino = {
+    TYPES: TYPES,
+    PIECES: PIECES,
+    kicksFor: kicksFor,
+    spawnX: function (type) { return type === 'O' ? 4 : 3; }
+  };
+})(window);
+</script>
+<script>
+/* テトリスのルール本体 / Core Tetris rules.
+ * ガイドライン準拠: 10x20 の可視フィールド、SRS 回転とウォールキック、
+ * 7-bag ランダマイザ、ホールド、ゴースト、ロックディレイ（15回まで再設定）、
+ * T-Spin 判定、B2B、コンボ、パーフェクトクリア、レベル別落下速度。
+ *
+ * モード 'word' では、確定したブロックが持つ文字から英単語を探して消す。
+ * 消えた後は列ごとに落下し、連鎖（チェイン）が起きる。 */
+(function (global) {
+  'use strict';
+
+  var T = global.Tetromino;
+
+  var COLS = 10;
+  var ROWS = 22;      // 上2行は見えないスポーン領域
+  var HIDDEN = 2;
+  var NEXT_COUNT = 5;
+
+  var LOCK_DELAY = 500;     // ms（難易度で上書きされる既定値）
+  var MAX_LOCK_RESETS = 15;
+  var CLEAR_ANIM = 240;     // ms（ライン／単語の消去演出）
+  var ENTRY_DELAY = 80;     // ms（ARE）
+
+  var LINE_SCORE = [0, 100, 300, 500, 800];
+  var TSPIN_SCORE = [400, 800, 1200, 1600];
+  var TSPIN_MINI_SCORE = [100, 200, 400];
+  var PERFECT_SCORE = [0, 800, 1200, 1800, 2000];
+
+  // ガイドラインの落下速度: (0.8 - (level-1)*0.007)^(level-1) 秒/マス
+  function gravityMs(level) {
+    var l = Math.min(level, 20);
+    return Math.pow(0.8 - (l - 1) * 0.007, l - 1) * 1000;
+  }
+
+  function makeBoard() {
+    var b = [];
+    for (var r = 0; r < ROWS; r++) {
+      var row = [];
+      for (var c = 0; c < COLS; c++) row.push(null);
+      b.push(row);
+    }
+    return b;
+  }
+
+  function Engine(opts) {
+    opts = opts || {};
+    this.emit = opts.onEvent || function () {};
+    this.cols = COLS;
+    this.rows = ROWS;
+    this.hidden = HIDDEN;
+    this.nextCount = NEXT_COUNT;
+    this.mode = opts.mode || 'classic';
+    this.diff = opts.difficulty || global.Difficulty.get('normal');
+    this.startLevel = opts.startLevel || this.diff.startLevel;
+    this.reset(this.mode, this.startLevel, this.diff);
+  }
+
+  Engine.prototype.reset = function (mode, startLevel, difficulty) {
+    if (mode) this.mode = mode;
+    if (difficulty) this.diff = difficulty;
+    this.startLevel = startLevel || this.diff.startLevel;
+    this.nextCount = this.diff.nextCount;
+
+    this.board = makeBoard();
+    this.bag = [];
+    this.queue = [];
+    this.active = null;
+    this.hold = null;
+    this.holdUsed = false;
+
+    this.score = 0;
+    this.lines = 0;
+    this.level = this.startLevel;
+    this.combo = -1;
+    this.backToBack = false;
+    this.pieces = 0;
+    this.startedAt = 0;
+    this.elapsed = 0;
+
+    // 単語モード用
+    this.coins = 0;
+    this.wordLog = [];
+    this.wordCount = 0;
+    this.bestWord = null;
+    this.longestChain = 0;
+
+    this.phase = 'ready';   // ready / falling / clearing / entry / over
+    this.gravityAcc = 0;
+    this.lockTimer = 0;
+    this.lockResets = 0;
+    this.grounded = false;
+    this.clearTimer = 0;
+    this.entryTimer = 0;
+    this.pending = null;
+    this.clearingCells = [];
+    this.chain = 0;
+    this.pieceClearedLines = 0;
+    this.softDropping = false;
+    this.lastActionRotate = false;
+    this.lastKickIndex = 0;
+    this.resolveFirstStep = true;
+    this.pendingTSpin = null;
+
+    for (var i = 0; i < this.nextCount; i++) this.queue.push(this.nextFromBag());
+  };
+
+  Engine.prototype.start = function () {
+    this.phase = 'falling';
+    this.startedAt = performance.now();
+    this.spawn();
+  };
+
+  // ---- 7-bag ------------------------------------------------------------
+  Engine.prototype.nextFromBag = function () {
+    if (!this.bag.length) {
+      this.bag = T.TYPES.slice();
+      for (var i = this.bag.length - 1; i > 0; i--) {
+        var j = (Math.random() * (i + 1)) | 0;
+        var t = this.bag[i]; this.bag[i] = this.bag[j]; this.bag[j] = t;
+      }
+    }
+    var type = this.bag.pop();
+    return {
+      type: type,
+      letters: this.mode === 'word' ? global.Words.drawLetters(4, this.diff.vowelBias) : null
+    };
+  };
+
+  Engine.prototype.makePiece = function (spec) {
+    return {
+      type: spec.type,
+      letters: spec.letters,
+      rot: 0,
+      x: T.spawnX(spec.type),
+      y: 0
+    };
+  };
+
+  Engine.prototype.cellsOf = function (piece, rot, x, y) {
+    var def = T.PIECES[piece.type];
+    var state = def.states[(rot === undefined ? piece.rot : rot)];
+    var px = (x === undefined ? piece.x : x);
+    var py = (y === undefined ? piece.y : y);
+    var out = [];
+    for (var i = 0; i < state.length; i++) {
+      out.push({
+        c: px + state[i][0],
+        r: py + state[i][1],
+        letter: piece.letters ? piece.letters[i] : null,
+        index: i
+      });
+    }
+    return out;
+  };
+
+  Engine.prototype.collides = function (piece, rot, x, y) {
+    var cells = this.cellsOf(piece, rot, x, y);
+    for (var i = 0; i < cells.length; i++) {
+      var cell = cells[i];
+      if (cell.c < 0 || cell.c >= COLS || cell.r >= ROWS) return true;
+      if (cell.r < 0) continue;
+      if (this.board[cell.r][cell.c]) return true;
+    }
+    return false;
+  };
+
+  Engine.prototype.spawn = function (spec) {
+    var piece = this.makePiece(spec || this.queue.shift());
+    if (!spec) this.queue.push(this.nextFromBag());
+
+    if (this.collides(piece, piece.rot, piece.x, piece.y)) {
+      this.active = piece;
+      this.gameOver('block out');
+      return;
+    }
+    // ガイドライン: 出現後、ぶつからなければ即1マス下へ
+    if (!this.collides(piece, piece.rot, piece.x, piece.y + 1)) piece.y += 1;
+
+    this.active = piece;
+    this.gravityAcc = 0;
+    this.lockTimer = 0;
+    this.lockResets = 0;
+    this.grounded = false;
+    this.lastActionRotate = false;
+    this.pieces++;
+    this.phase = 'falling';
+    this.emit('spawn', { piece: piece });
+  };
+
+  Engine.prototype.gameOver = function (reason) {
+    this.phase = 'over';
+    this.emit('gameover', {
+      reason: reason,
+      difficulty: this.diff.key,
+      score: this.score,
+      lines: this.lines,
+      level: this.level,
+      coins: this.coins,
+      words: this.wordCount,
+      bestWord: this.bestWord,
+      elapsed: this.elapsed
+    });
+  };
+
+  // ---- 操作 -------------------------------------------------------------
+  Engine.prototype.canAct = function () {
+    return this.phase === 'falling' && this.active;
+  };
+
+  Engine.prototype.move = function (dx) {
+    if (!this.canAct()) return false;
+    var p = this.active;
+    if (this.collides(p, p.rot, p.x + dx, p.y)) return false;
+    p.x += dx;
+    this.lastActionRotate = false;
+    this.onPieceMoved();
+    this.emit('move', {});
+    return true;
+  };
+
+  Engine.prototype.rotate = function (dir) { // 1=CW, -1=CCW, 2=180
+    if (!this.canAct()) return false;
+    var p = this.active;
+    var to = ((p.rot + dir) % 4 + 4) % 4;
+    var kicks = T.kicksFor(p.type, p.rot, to);
+    for (var i = 0; i < kicks.length; i++) {
+      var nx = p.x + kicks[i][0];
+      var ny = p.y + kicks[i][1];
+      if (!this.collides(p, to, nx, ny)) {
+        p.rot = to; p.x = nx; p.y = ny;
+        this.lastActionRotate = true;
+        this.lastKickIndex = i;
+        this.onPieceMoved();
+        this.emit('rotate', { kick: i });
+        return true;
+      }
+    }
+    return false;
+  };
+
+  Engine.prototype.onPieceMoved = function () {
+    // 接地中に動かせたらロックディレイを再設定（上限あり）
+    if (this.grounded && this.lockResets < MAX_LOCK_RESETS) {
+      this.lockTimer = 0;
+      this.lockResets++;
+    }
+    var p = this.active;
+    this.grounded = this.collides(p, p.rot, p.x, p.y + 1);
+    if (!this.grounded) this.lockTimer = 0;
+  };
+
+  Engine.prototype.softDrop = function () {
+    if (!this.canAct()) return false;
+    var p = this.active;
+    if (this.collides(p, p.rot, p.x, p.y + 1)) return false;
+    p.y += 1;
+    this.score += 1;
+    this.lastActionRotate = false;
+    this.grounded = this.collides(p, p.rot, p.x, p.y + 1);
+    this.lockTimer = 0;
+    return true;
+  };
+
+  Engine.prototype.hardDrop = function () {
+    if (!this.canAct()) return false;
+    var p = this.active;
+    var dist = 0;
+    while (!this.collides(p, p.rot, p.x, p.y + 1)) { p.y += 1; dist++; }
+    this.score += dist * 2;
+    this.lastActionRotate = this.lastActionRotate && dist === 0;
+    this.emit('harddrop', { distance: dist, piece: p });
+    this.lockPiece();
+    return true;
+  };
+
+  Engine.prototype.holdPiece = function () {
+    if (!this.canAct() || this.holdUsed) return false;
+    var current = { type: this.active.type, letters: this.active.letters };
+    var swap = this.hold;
+    this.hold = current;
+    this.holdUsed = true;
+    this.emit('hold', {});
+    if (swap) this.spawn(swap);
+    else this.spawn();
+    return true;
+  };
+
+  /* 単語モード: 落下中のミノの文字を引き直す（コイン消費は呼び出し側で判定） */
+  Engine.prototype.rerollLetters = function () {
+    if (!this.canAct() || this.mode !== 'word' || !this.active.letters) return false;
+    this.active.letters = global.Words.drawLetters(4, this.diff.vowelBias);
+    this.emit('reroll', {});
+    return true;
+  };
+
+  Engine.prototype.ghostY = function () {
+    if (!this.active) return 0;
+    var p = this.active;
+    var y = p.y;
+    while (!this.collides(p, p.rot, p.x, y + 1)) y++;
+    return y;
+  };
+
+  // ---- 固定と消去 -------------------------------------------------------
+  Engine.prototype.detectTSpin = function () {
+    var p = this.active;
+    if (p.type !== 'T' || !this.lastActionRotate) return null;
+    var corners = [
+      [p.x, p.y],         // 左上
+      [p.x + 2, p.y],     // 右上
+      [p.x, p.y + 2],     // 左下
+      [p.x + 2, p.y + 2]  // 右下
+    ];
+    var self = this;
+    var filled = corners.map(function (pt) {
+      var c = pt[0], r = pt[1];
+      if (c < 0 || c >= COLS || r >= ROWS) return true;
+      if (r < 0) return false;
+      return !!self.board[r][c];
+    });
+    var total = filled.filter(Boolean).length;
+    if (total < 3) return null;
+    var frontIdx = [[0, 1], [1, 3], [2, 3], [0, 2]][p.rot];
+    var front = filled[frontIdx[0]] && filled[frontIdx[1]];
+    if (front) return 'tspin';
+    return this.lastKickIndex === 4 ? 'tspin' : 'mini';
+  };
+
+  Engine.prototype.lockPiece = function () {
+    var p = this.active;
+    var cells = this.cellsOf(p);
+    var def = T.PIECES[p.type];
+    var allHidden = true;
+
+    this.pendingTSpin = this.detectTSpin();
+
+    for (var i = 0; i < cells.length; i++) {
+      var cell = cells[i];
+      if (cell.r < 0) continue;
+      if (cell.r >= HIDDEN) allHidden = false;
+      this.board[cell.r][cell.c] = {
+        type: p.type,
+        color: def.color,
+        dark: def.dark,
+        letter: cell.letter
+      };
+    }
+
+    this.emit('lock', { cells: cells, type: p.type });
+    this.active = null;
+    this.holdUsed = false;
+    this.chain = 0;
+    this.pieceClearedLines = 0;
+    this.resolveFirstStep = true;
+
+    if (allHidden) { this.gameOver('lock out'); return; }
+
+    this.beginResolve();
+  };
+
+  /* 次に消すもの（単語 → ライン の順）を探す */
+  Engine.prototype.findClear = function () {
+    if (this.mode === 'word') {
+      var words = global.Words.findWords(this.board, ROWS, COLS, this.diff.minWordLength);
+      if (words.length) {
+        var set = Object.create(null);
+        var cells = [];
+        words.forEach(function (w) {
+          w.cells.forEach(function (rc) {
+            var key = rc[0] + ':' + rc[1];
+            if (!set[key]) { set[key] = true; cells.push(rc); }
+          });
+        });
+        return { kind: 'words', words: words, cells: cells };
+      }
+    }
+    var rows = [];
+    for (var r = 0; r < ROWS; r++) {
+      var full = true;
+      for (var c = 0; c < COLS; c++) if (!this.board[r][c]) { full = false; break; }
+      if (full) rows.push(r);
+    }
+    if (rows.length) {
+      var lineCells = [];
+      rows.forEach(function (rr) {
+        for (var c2 = 0; c2 < COLS; c2++) lineCells.push([rr, c2]);
+      });
+      return { kind: 'lines', rows: rows, cells: lineCells };
+    }
+    return null;
+  };
+
+  Engine.prototype.beginResolve = function () {
+    var step = this.findClear();
+    if (!step) { this.finishResolve(); return; }
+    this.chain++;
+    if (this.chain > this.longestChain) this.longestChain = this.chain;
+    this.pending = step;
+    this.clearingCells = step.cells;
+    this.clearTimer = CLEAR_ANIM;
+    this.phase = 'clearing';
+    if (step.kind === 'words') {
+      this.emit('wordsfound', { words: step.words, chain: this.chain });
+    } else {
+      this.emit('linesfound', { rows: step.rows, chain: this.chain });
+    }
+  };
+
+  Engine.prototype.applyStep = function (step) {
+    if (step.kind === 'words') this.applyWordClear(step);
+    else this.applyLineClear(step);
+  };
+
+  Engine.prototype.applyWordClear = function (step) {
+    var self = this;
+    var gained = 0;
+    var entries = [];
+
+    step.words.forEach(function (w) {
+      var coins = Math.max(1, Math.round(global.Words.coinsFor(w.word, self.chain) * self.diff.coinMult));
+      gained += coins;
+      var entry = {
+        word: w.word,
+        length: w.word.length,
+        coins: coins,
+        chain: self.chain,
+        meaning: global.Words.meaningOf(w.word),
+        dir: w.dir
+      };
+      entries.push(entry);
+      self.wordLog.unshift(entry);
+      if (self.wordLog.length > 40) self.wordLog.pop();
+      self.wordCount++;
+      if (!self.bestWord || w.word.length > self.bestWord.length ||
+          (w.word.length === self.bestWord.length && coins > self.bestWord.coins)) {
+        self.bestWord = entry;
+      }
+    });
+
+    this.coins += gained;
+    this.score += gained * 10;
+
+    step.cells.forEach(function (rc) { self.board[rc[0]][rc[1]] = null; });
+    this.applyColumnGravity();
+
+    this.emit('wordscored', { words: entries, coins: gained, chain: this.chain });
+  };
+
+  /* 単語消去のあとは列ごとに落ちる（連鎖のもと） */
+  Engine.prototype.applyColumnGravity = function () {
+    for (var c = 0; c < COLS; c++) {
+      var stack = [];
+      for (var r = ROWS - 1; r >= 0; r--) {
+        if (this.board[r][c]) stack.push(this.board[r][c]);
+      }
+      for (var r2 = ROWS - 1, i = 0; r2 >= 0; r2--, i++) {
+        this.board[r2][c] = i < stack.length ? stack[i] : null;
+      }
+    }
+  };
+
+  Engine.prototype.applyLineClear = function (step) {
+    var n = step.rows.length;
+    var tspin = this.resolveFirstStep ? this.pendingTSpin : null;
+    var base;
+    var difficult = false;
+    var label = '';
+
+    // 単語モードの連鎖では 5 行以上が同時に揃うことがあるので、表の範囲を超えても破綻させない
+    if (tspin === 'tspin') {
+      var ti = Math.min(n, 3);
+      base = TSPIN_SCORE[ti];
+      difficult = true;
+      label = ['T-SPIN', 'T-SPIN SINGLE', 'T-SPIN DOUBLE', 'T-SPIN TRIPLE'][ti];
+    } else if (tspin === 'mini') {
+      var mi = Math.min(n, 2);
+      base = TSPIN_MINI_SCORE[mi];
+      difficult = n > 0;
+      label = ['T-SPIN MINI', 'T-SPIN MINI SINGLE', 'T-SPIN MINI DOUBLE'][mi];
+    } else if (n <= 4) {
+      base = LINE_SCORE[n];
+      difficult = n === 4;
+      label = ['', 'SINGLE', 'DOUBLE', 'TRIPLE', 'TETRIS'][n];
+    } else {
+      base = LINE_SCORE[4] + (n - 4) * LINE_SCORE[2];
+      difficult = true;
+      label = n + ' LINES';
+    }
+
+    var b2b = false;
+    if (difficult && this.backToBack && n > 0) { base = Math.floor(base * 1.5); b2b = true; }
+    if (n > 0) this.backToBack = difficult;
+
+    var gained = Math.round(base * this.level * this.diff.scoreMult);
+
+    // コンボ（1ミノにつき1回だけ加算）
+    if (n > 0 && this.pieceClearedLines === 0) {
+      this.combo++;
+      if (this.combo > 0) gained += Math.round(50 * this.combo * this.level * this.diff.scoreMult);
+    }
+    this.pieceClearedLines += n;
+
+    // 行を消して上を詰める
+    var self = this;
+    step.rows.sort(function (a, b) { return a - b; }).forEach(function (r) {
+      self.board.splice(r, 1);
+      var row = [];
+      for (var c = 0; c < COLS; c++) row.push(null);
+      self.board.unshift(row);
+    });
+
+    this.lines += n;
+    var newLevel = Math.max(this.startLevel, Math.floor(this.lines / 10) + 1);
+    var leveled = newLevel !== this.level;
+    this.level = newLevel;
+
+    // パーフェクトクリア
+    var empty = true;
+    for (var r2 = 0; r2 < ROWS && empty; r2++) {
+      for (var c2 = 0; c2 < COLS; c2++) if (this.board[r2][c2]) { empty = false; break; }
+    }
+    var perfect = empty && n > 0;
+    if (perfect) {
+      var pc = (n >= 4 && b2b) ? 3200 : PERFECT_SCORE[Math.min(n, 4)];
+      gained += Math.round(pc * this.level * this.diff.scoreMult);
+    }
+
+    this.score += gained;
+
+    // 単語モードでもライン消去でコインが少し貯まる
+    if (this.mode === 'word' && n > 0) {
+      var lineCoins = Math.round(n * n * 5 * this.diff.coinMult);
+      this.coins += lineCoins;
+    }
+
+    this.emit('linescored', {
+      lines: n, label: label, score: gained, b2b: b2b, perfect: perfect,
+      combo: this.combo, level: this.level, leveled: leveled, tspin: tspin
+    });
+
+    this.resolveFirstStep = false;
+  };
+
+  Engine.prototype.finishResolve = function () {
+    if (this.pieceClearedLines === 0) this.combo = -1;
+    this.pendingTSpin = null;
+    this.phase = 'entry';
+    this.entryTimer = ENTRY_DELAY;
+  };
+
+  // ---- メインループ -----------------------------------------------------
+  Engine.prototype.update = function (dt) {
+    if (this.phase === 'over' || this.phase === 'ready') return;
+    this.elapsed += dt;
+
+    if (this.phase === 'clearing') {
+      this.clearTimer -= dt;
+      if (this.clearTimer <= 0) {
+        var step = this.pending;
+        this.pending = null;
+        this.clearingCells = [];
+        this.applyStep(step);
+        this.beginResolve();
+      }
+      return;
+    }
+
+    if (this.phase === 'entry') {
+      this.entryTimer -= dt;
+      if (this.entryTimer <= 0) this.spawn();
+      return;
+    }
+
+    if (this.phase !== 'falling' || !this.active) return;
+
+    var interval = gravityMs(this.level) / this.diff.gravityScale;
+    if (this.softDropping) interval = Math.min(interval, Math.max(interval / 20, 12));
+
+    this.gravityAcc += dt;
+    while (this.gravityAcc >= interval && this.phase === 'falling') {
+      this.gravityAcc -= interval;
+      var p = this.active;
+      if (!this.collides(p, p.rot, p.x, p.y + 1)) {
+        p.y += 1;
+        if (this.softDropping) this.score += 1;
+        this.lastActionRotate = false;
+        this.grounded = this.collides(p, p.rot, p.x, p.y + 1);
+        if (!this.grounded) this.lockTimer = 0;
+      } else {
+        this.grounded = true;
+        break;
+      }
+    }
+
+    if (this.grounded) {
+      this.lockTimer += dt;
+      if (this.lockTimer >= this.diff.lockDelay) this.lockPiece();
+    }
+  };
+
+  Engine.prototype.stats = function () {
+    return {
+      score: this.score, lines: this.lines, level: this.level,
+      combo: this.combo, coins: this.coins, words: this.wordCount,
+      pieces: this.pieces, elapsed: this.elapsed, bestWord: this.bestWord,
+      b2b: this.backToBack, longestChain: this.longestChain
+    };
+  };
+
+  Engine.COLS = COLS;
+  Engine.ROWS = ROWS;
+  Engine.HIDDEN = HIDDEN;
+  Engine.gravityMs = gravityMs;
+  global.TetrisEngine = Engine;
+})(window);
+</script>
+<script>
+/* 描画 / Canvas rendering.
+ * 盤面・ゴースト・落下中のミノ・消去演出・NEXT・HOLD を描く。 */
+(function (global) {
+  'use strict';
+
+  var CELL = 32;             // 論理サイズ（CSS 側で拡大縮小する）
+  var RADIUS = 5;
+
+  function roundRect(ctx, x, y, w, h, r) {
+    var rr = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y + h, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+    ctx.closePath();
+  }
+
+  function Renderer(canvas, holdCanvas, nextCanvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.holdCanvas = holdCanvas;
+    this.holdCtx = holdCanvas.getContext('2d');
+    this.nextCanvas = nextCanvas;
+    this.nextCtx = nextCanvas.getContext('2d');
+    this.showGhost = true;
+    this.showLetters = true;
+    this.shake = 0;
+  }
+
+  Renderer.prototype.resize = function (engine) {
+    var dpr = Math.min(global.devicePixelRatio || 1, 2);
+    var visible = engine.rows - engine.hidden;
+    sizeCanvas(this.canvas, engine.cols * CELL, visible * CELL, dpr);
+    sizeCanvas(this.holdCanvas, 4 * CELL, 3 * CELL, dpr);
+    sizeCanvas(this.nextCanvas, 3.4 * CELL, (engine.nextCount * 2.2 + 0.4) * CELL, dpr);
+
+    // NEXT の表示数は難易度で変わるので、枠の高さも中身に合わせる
+    var compact = (global.innerWidth || 1024) <= 760;
+    var per = compact ? 40 : 54;
+    this.holdCanvas.style.height = (compact ? 58 : 74) + 'px';
+    this.nextCanvas.style.height = Math.min(engine.nextCount * per + 14, compact ? 160 : 320) + 'px';
+    this.dpr = dpr;
+  };
+
+  function sizeCanvas(canvas, w, h, dpr) {
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    canvas.style.aspectRatio = w + ' / ' + h;
+    var ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  Renderer.prototype.kick = function (amount) { this.shake = Math.max(this.shake, amount); };
+
+  // --- セル1個 ---
+  Renderer.prototype.drawCell = function (ctx, x, y, cell, opts) {
+    opts = opts || {};
+    var alpha = opts.alpha === undefined ? 1 : opts.alpha;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    if (opts.ghost) {
+      ctx.strokeStyle = cell.color;
+      ctx.globalAlpha = alpha * 0.45;
+      ctx.lineWidth = 2;
+      roundRect(ctx, x + 2.5, y + 2.5, CELL - 5, CELL - 5, RADIUS);
+      ctx.stroke();
+      ctx.globalAlpha = alpha * 0.12;
+      ctx.fillStyle = cell.color;
+      ctx.fill();
+      ctx.restore();
+      return;
+    }
+
+    var grad = ctx.createLinearGradient(x, y, x, y + CELL);
+    grad.addColorStop(0, cell.color);
+    grad.addColorStop(1, cell.dark || cell.color);
+    ctx.fillStyle = grad;
+    roundRect(ctx, x + 1, y + 1, CELL - 2, CELL - 2, RADIUS);
+    ctx.fill();
+
+    // 上面のハイライト
+    ctx.globalAlpha = alpha * 0.35;
+    ctx.fillStyle = '#ffffff';
+    roundRect(ctx, x + 3, y + 3, CELL - 6, (CELL - 6) * 0.38, RADIUS - 2);
+    ctx.fill();
+    ctx.globalAlpha = alpha;
+
+    if (this.showLetters && cell.letter) {
+      var letter = cell.letter.toUpperCase();
+      ctx.font = 'bold ' + Math.round(CELL * 0.56) + 'px "Trebuchet MS", "Segoe UI", system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(4, 10, 24, 0.85)';
+      ctx.strokeText(letter, x + CELL / 2, y + CELL / 2 + 1);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(letter, x + CELL / 2, y + CELL / 2 + 1);
+    }
+    ctx.restore();
+  };
+
+  // --- 盤面 ---
+  Renderer.prototype.draw = function (engine, dt) {
+    var ctx = this.ctx;
+    var cols = engine.cols;
+    var hidden = engine.hidden;
+    var visible = engine.rows - hidden;
+    var w = cols * CELL;
+    var h = visible * CELL;
+
+    ctx.save();
+    if (this.shake > 0) {
+      var s = this.shake;
+      ctx.translate((Math.random() - 0.5) * s, (Math.random() - 0.5) * s);
+      this.shake = Math.max(0, this.shake - dt * 0.04);
+    }
+
+    ctx.clearRect(-8, -8, w + 16, h + 16);
+    var bg = ctx.createLinearGradient(0, 0, 0, h);
+    bg.addColorStop(0, '#0b1120');
+    bg.addColorStop(1, '#0f172a');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+
+    // グリッド
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.10)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (var c = 1; c < cols; c++) { ctx.moveTo(c * CELL + 0.5, 0); ctx.lineTo(c * CELL + 0.5, h); }
+    for (var r = 1; r < visible; r++) { ctx.moveTo(0, r * CELL + 0.5); ctx.lineTo(w, r * CELL + 0.5); }
+    ctx.stroke();
+
+    // 消去中のマスを点滅させる
+    var flashing = Object.create(null);
+    if (engine.phase === 'clearing') {
+      var t = 1 - Math.max(0, engine.clearTimer) / 240;
+      engine.clearingCells.forEach(function (rc) { flashing[rc[0] + ':' + rc[1]] = t; });
+    }
+
+    // 固定ブロック
+    for (var br = hidden; br < engine.rows; br++) {
+      for (var bc = 0; bc < cols; bc++) {
+        var cell = engine.board[br][bc];
+        if (!cell) continue;
+        var px = bc * CELL;
+        var py = (br - hidden) * CELL;
+        var f = flashing[br + ':' + bc];
+        if (f !== undefined) {
+          this.drawCell(ctx, px, py, cell, { alpha: 1 - f * 0.15 });
+          ctx.save();
+          ctx.globalAlpha = 0.35 + 0.5 * Math.abs(Math.sin(f * Math.PI * 3));
+          ctx.fillStyle = '#ffffff';
+          roundRect(ctx, px + 1, py + 1, CELL - 2, CELL - 2, RADIUS);
+          ctx.fill();
+          ctx.restore();
+        } else {
+          this.drawCell(ctx, px, py, cell);
+        }
+      }
+    }
+
+    // ゴースト + 落下中のミノ
+    if (engine.active && engine.phase === 'falling') {
+      var def = global.Tetromino.PIECES[engine.active.type];
+      var piece = engine.active;
+      if (this.showGhost) {
+        var gy = engine.ghostY();
+        engine.cellsOf(piece, piece.rot, piece.x, gy).forEach(function (cell) {
+          if (cell.r < hidden) return;
+          this.drawCell(ctx, cell.c * CELL, (cell.r - hidden) * CELL,
+            { color: def.color, dark: def.dark, letter: null }, { ghost: true });
+        }, this);
+      }
+      engine.cellsOf(piece).forEach(function (cell) {
+        if (cell.r < hidden) return;
+        this.drawCell(ctx, cell.c * CELL, (cell.r - hidden) * CELL,
+          { color: def.color, dark: def.dark, letter: cell.letter });
+      }, this);
+    }
+
+    ctx.restore();
+  };
+
+  // --- HOLD / NEXT ---
+  Renderer.prototype.drawPieceBox = function (ctx, spec, x, y, scale, dim) {
+    if (!spec) return;
+    var def = global.Tetromino.PIECES[spec.type];
+    var cells = def.states[0];
+    var minX = Math.min.apply(null, cells.map(function (p) { return p[0]; }));
+    var maxX = Math.max.apply(null, cells.map(function (p) { return p[0]; }));
+    var minY = Math.min.apply(null, cells.map(function (p) { return p[1]; }));
+    var maxY = Math.max.apply(null, cells.map(function (p) { return p[1]; }));
+    var wCells = maxX - minX + 1;
+    var hCells = maxY - minY + 1;
+    var size = CELL * scale;
+    var ox = x - (wCells * size) / 2 - minX * size;
+    var oy = y - (hCells * size) / 2 - minY * size;
+
+    ctx.save();
+    ctx.globalAlpha = dim ? 0.35 : 1;
+    ctx.scale(scale, scale);
+    for (var i = 0; i < cells.length; i++) {
+      this.drawCell(ctx, (ox + cells[i][0] * size) / scale, (oy + cells[i][1] * size) / scale,
+        { color: def.color, dark: def.dark, letter: spec.letters ? spec.letters[i] : null });
+    }
+    ctx.restore();
+  };
+
+  Renderer.prototype.drawHold = function (engine) {
+    var ctx = this.holdCtx;
+    ctx.clearRect(0, 0, 4 * CELL, 3 * CELL);
+    this.drawPieceBox(ctx, engine.hold, 2 * CELL, 1.5 * CELL, 0.8, engine.holdUsed);
+  };
+
+  Renderer.prototype.drawNext = function (engine) {
+    var ctx = this.nextCtx;
+    var h = (engine.nextCount * 2.2 + 0.4) * CELL;
+    ctx.clearRect(0, 0, 3.4 * CELL, h);
+    for (var i = 0; i < engine.queue.length && i < engine.nextCount; i++) {
+      var cy = (1.1 + i * 2.2) * CELL;
+      this.drawPieceBox(ctx, engine.queue[i], 1.7 * CELL, cy, i === 0 ? 0.8 : 0.68, false);
+    }
+  };
+
+  Renderer.CELL = CELL;
+  global.Renderer = Renderer;
+})(window);
+</script>
+<script>
+/* 効果音 / Tiny WebAudio synth (no external assets). */
+(function (global) {
+  'use strict';
+
+  function Sfx() {
+    this.ctx = null;
+    this.enabled = true;
+  }
+
+  Sfx.prototype.ensure = function () {
+    if (!this.ctx) {
+      var AC = global.AudioContext || global.webkitAudioContext;
+      if (!AC) return null;
+      this.ctx = new AC();
+    }
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    return this.ctx;
+  };
+
+  Sfx.prototype.tone = function (freq, dur, type, gain, delay) {
+    if (!this.enabled) return;
+    var ctx = this.ensure();
+    if (!ctx) return;
+    var t0 = ctx.currentTime + (delay || 0);
+    var osc = ctx.createOscillator();
+    var amp = ctx.createGain();
+    osc.type = type || 'square';
+    osc.frequency.setValueAtTime(freq, t0);
+    amp.gain.setValueAtTime(0.0001, t0);
+    amp.gain.exponentialRampToValueAtTime(gain || 0.06, t0 + 0.012);
+    amp.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(amp).connect(ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.02);
+  };
+
+  Sfx.prototype.move = function () { this.tone(220, 0.05, 'square', 0.025); };
+  Sfx.prototype.rotate = function () { this.tone(330, 0.06, 'triangle', 0.04); };
+  Sfx.prototype.lock = function () { this.tone(150, 0.09, 'square', 0.045); };
+  Sfx.prototype.drop = function () { this.tone(90, 0.12, 'sawtooth', 0.05); };
+  Sfx.prototype.hold = function () { this.tone(440, 0.08, 'triangle', 0.04); };
+  Sfx.prototype.lines = function (n) {
+    var base = [0, 523, 587, 659, 784][n] || 523;
+    for (var i = 0; i < n; i++) this.tone(base * (1 + i * 0.18), 0.14, 'triangle', 0.05, i * 0.05);
+  };
+  Sfx.prototype.word = function (len, chain) {
+    var base = 440 * Math.pow(1.06, (len - 3) * 2 + (chain - 1) * 3);
+    for (var i = 0; i < Math.min(len, 6); i++) {
+      this.tone(base * Math.pow(1.26, i), 0.16, 'triangle', 0.055, i * 0.055);
+    }
+  };
+  Sfx.prototype.coin = function () {
+    this.tone(988, 0.07, 'square', 0.05);
+    this.tone(1319, 0.14, 'square', 0.05, 0.06);
+  };
+  Sfx.prototype.level = function () {
+    [523, 659, 784, 1047].forEach(function (f, i) { this.tone(f, 0.16, 'triangle', 0.05, i * 0.07); }, this);
+  };
+  Sfx.prototype.over = function () {
+    [440, 392, 330, 262].forEach(function (f, i) { this.tone(f, 0.3, 'sawtooth', 0.05, i * 0.14); }, this);
+  };
+
+  global.Sfx = new Sfx();
+})(window);
+</script>
+<script>
+/* 入力 / Keyboard + touch input with DAS / ARR handling.
+ * DAS = 横移動が連射に入るまでの溜め時間、ARR = 連射間隔。 */
+(function (global) {
+  'use strict';
+
+  function Input(opts) {
+    this.das = opts.das || 150;
+    this.arr = opts.arr || 33;
+    this.actions = opts.actions;
+    this.enabled = true;
+
+    this.dir = 0;           // -1 / 0 / 1
+    this.dirTimer = 0;
+    this.repeating = false;
+    this.held = Object.create(null);
+    this.softDrop = false;
+
+    this._bind();
+  }
+
+  var KEYMAP = {
+    ArrowLeft: 'left', ArrowRight: 'right', ArrowDown: 'softDrop', ArrowUp: 'rotateCW',
+    KeyA: 'left', KeyD: 'right', KeyS: 'softDrop', KeyW: 'rotateCW',
+    Space: 'hardDrop', KeyZ: 'rotateCCW', KeyX: 'rotateCW', KeyQ: 'rotate180',
+    ShiftLeft: 'hold', ShiftRight: 'hold', KeyC: 'hold',
+    KeyR: 'reroll', KeyP: 'pause', Escape: 'pause', Enter: 'confirm', KeyM: 'mute'
+  };
+
+  Input.prototype._bind = function () {
+    var self = this;
+    global.addEventListener('keydown', function (e) {
+      var action = KEYMAP[e.code];
+      if (!action) return;
+      if (e.code === 'Space' || e.code.indexOf('Arrow') === 0) e.preventDefault();
+      if (e.repeat) return;
+      self.press(action);
+    });
+    global.addEventListener('keyup', function (e) {
+      var action = KEYMAP[e.code];
+      if (!action) return;
+      self.release(action);
+    });
+    global.addEventListener('blur', function () {
+      self.dir = 0; self.softDrop = false; self.held = Object.create(null);
+      if (self.actions.softDropChange) self.actions.softDropChange(false);
+    });
+  };
+
+  Input.prototype.press = function (action) {
+    this.held[action] = true;
+    var a = this.actions;
+    switch (action) {
+      case 'left':
+      case 'right':
+        if (!this.enabled) return;
+        this.dir = action === 'left' ? -1 : 1;
+        this.dirTimer = 0;
+        this.repeating = false;
+        a.move(this.dir);
+        break;
+      case 'softDrop':
+        if (!this.enabled) return;
+        this.softDrop = true;
+        a.softDropChange(true);
+        break;
+      case 'hardDrop': if (this.enabled) a.hardDrop(); break;
+      case 'rotateCW': if (this.enabled) a.rotate(1); break;
+      case 'rotateCCW': if (this.enabled) a.rotate(-1); break;
+      case 'rotate180': if (this.enabled) a.rotate(2); break;
+      case 'hold': if (this.enabled) a.hold(); break;
+      case 'reroll': if (this.enabled) a.reroll(); break;
+      case 'pause': a.pause(); break;
+      case 'confirm': a.confirm(); break;
+      case 'mute': a.mute(); break;
+    }
+  };
+
+  Input.prototype.release = function (action) {
+    this.held[action] = false;
+    if (action === 'left' || action === 'right') {
+      var releasedDir = action === 'left' ? -1 : 1;
+      if (this.dir === releasedDir) {
+        // 反対側が押しっぱなしなら、そちらに切り替える
+        if (this.held.left) { this.dir = -1; this.dirTimer = 0; this.repeating = false; }
+        else if (this.held.right) { this.dir = 1; this.dirTimer = 0; this.repeating = false; }
+        else this.dir = 0;
+      }
+    }
+    if (action === 'softDrop') {
+      this.softDrop = false;
+      this.actions.softDropChange(false);
+    }
+  };
+
+  Input.prototype.update = function (dt) {
+    if (!this.enabled || !this.dir) return;
+    this.dirTimer += dt;
+    if (!this.repeating) {
+      if (this.dirTimer >= this.das) { this.repeating = true; this.dirTimer -= this.das; this.actions.move(this.dir); }
+      return;
+    }
+    if (this.arr <= 0) {
+      // ARR 0 = 端まで一気に寄せる
+      for (var i = 0; i < 10; i++) if (!this.actions.move(this.dir)) break;
+      return;
+    }
+    while (this.dirTimer >= this.arr) {
+      this.dirTimer -= this.arr;
+      this.actions.move(this.dir);
+    }
+  };
+
+  /* 画面上のボタン（スマホ用） */
+  Input.prototype.bindTouch = function (root) {
+    var self = this;
+    Array.prototype.forEach.call(root.querySelectorAll('[data-action]'), function (btn) {
+      var action = btn.getAttribute('data-action');
+      var start = function (e) { e.preventDefault(); self.press(action); btn.classList.add('is-down'); };
+      var end = function (e) { e.preventDefault(); self.release(action); btn.classList.remove('is-down'); };
+      btn.addEventListener('touchstart', start, { passive: false });
+      btn.addEventListener('touchend', end);
+      btn.addEventListener('touchcancel', end);
+      btn.addEventListener('mousedown', start);
+      btn.addEventListener('mouseup', end);
+      btn.addEventListener('mouseleave', function () {
+        if (self.held[action]) { self.release(action); btn.classList.remove('is-down'); }
+      });
+    });
+  };
+
+  global.Input = Input;
+})(window);
+</script>
+<script>
+/* 画面とゲームの結線 / Wiring: engine + renderer + input + HUD. */
+(function (global) {
+  'use strict';
+
+  var STORE_KEY = 'uspeak.tetris.v1';
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ---- 保存データ -------------------------------------------------------
+  var store = {
+    wallet: 0,
+    bests: {},            // "モード:難易度" ごとのハイスコア
+    bestWord: null,
+    difficulty: 'normal',
+    settings: { das: 150, arr: 33, startLevel: 1, ghost: true, sound: true }
+  };
+
+  function loadStore() {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      if (data && typeof data === 'object') {
+        store.wallet = data.wallet || 0;
+        store.bests = Object.assign({}, data.bests || {});
+        store.bestWord = data.bestWord || null;
+        if (data.difficulty && global.Difficulty.LEVELS[data.difficulty]) store.difficulty = data.difficulty;
+        store.settings = Object.assign(store.settings, data.settings || {});
+      }
+    } catch (e) { /* localStorage が使えない環境では既定値のまま */ }
+  }
+
+  function saveStore() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) {}
+  }
+
+  loadStore();
+
+  // ---- 生成 -------------------------------------------------------------
+  var mode = 'classic';
+  var diff = global.Difficulty.get(store.difficulty);
+
+  function startLevelFor() {
+    // 設定スライダーが 1 のままなら、難易度ごとの開始レベルを使う
+    return store.settings.startLevel > 1 ? store.settings.startLevel : diff.startLevel;
+  }
+  function bestKey() { return mode + ':' + diff.key; }
+  function bestScore() { return store.bests[bestKey()] || 0; }
+
+  var engine = new global.TetrisEngine({
+    mode: mode, startLevel: startLevelFor(), difficulty: diff, onEvent: onEngineEvent
+  });
+  var renderer = new global.Renderer($('board'), $('hold'), $('next'));
+  renderer.showGhost = store.settings.ghost && diff.ghost;
+  renderer.showLetters = true;   // 文字を持つのは WORD モードのミノだけ
+  global.Sfx.enabled = store.settings.sound;
+
+  var input = new global.Input({
+    das: store.settings.das,
+    arr: store.settings.arr,
+    actions: {
+      move: function (dir) { return engine.move(dir); },
+      rotate: function (dir) { return engine.rotate(dir); },
+      softDropChange: function (on) { engine.softDropping = on; },
+      hardDrop: function () { engine.hardDrop(); },
+      hold: function () { engine.holdPiece(); },
+      reroll: function () { doReroll(); },
+      pause: function () { togglePause(); },
+      confirm: function () { onConfirm(); },
+      mute: function () { toggleSound(); }
+    }
+  });
+  input.bindTouch($('touch'));
+
+  var running = false;
+  var paused = false;
+  var lastCoins = 0;
+  var lastTime = 0;
+
+  // ---- エンジンからのイベント -------------------------------------------
+  function onEngineEvent(type, data) {
+    switch (type) {
+      case 'move': global.Sfx.move(); break;
+      case 'rotate': global.Sfx.rotate(); break;
+      case 'hold': global.Sfx.hold(); break;
+      case 'harddrop':
+        global.Sfx.drop();
+        renderer.kick(Math.min(3 + data.distance * 0.4, 9));
+        break;
+      case 'lock': global.Sfx.lock(); break;
+      case 'reroll': global.Sfx.coin(); break;
+      case 'wordscored': onWordScored(data); break;
+      case 'linescored': onLineScored(data); break;
+      case 'gameover': onGameOver(data); break;
+    }
+  }
+
+  function onWordScored(data) {
+    var longest = data.words.reduce(function (a, b) { return b.length > a.length ? b : a; });
+    global.Sfx.word(longest.length, data.chain);
+    global.Sfx.coin();
+    renderer.kick(2 + longest.length);
+
+    data.words.forEach(function (w) {
+      var label = w.word.toUpperCase() + '  ◉' + w.coins;
+      var sub = (w.meaning ? w.meaning + ' ・ ' : '') + w.length + '文字 ×' +
+        global.Words.lengthMultiplier(w.length);
+      toast(label, sub, w.length >= 6 ? 'is-chain' : '');
+    });
+    if (data.chain > 1) toast('CHAIN ×' + data.chain, '連鎖ボーナス ×' + global.Words.chainMultiplier(data.chain), 'is-chain');
+    renderWordLog();
+  }
+
+  function onLineScored(data) {
+    if (data.lines > 0) {
+      global.Sfx.lines(data.lines);
+      renderer.kick(data.lines * 2);
+      var sub = [];
+      if (data.b2b) sub.push('BACK-TO-BACK');
+      if (data.combo > 0) sub.push(data.combo + ' COMBO');
+      if (data.perfect) sub.push('PERFECT CLEAR');
+      toast(data.label + '  +' + data.score, sub.join(' ・ '), 'is-line');
+    }
+    if (data.leveled) {
+      global.Sfx.level();
+      toast('LEVEL ' + data.level, 'スピードアップ', 'is-line');
+    }
+  }
+
+  function onGameOver(data) {
+    running = false;
+    input.enabled = false;
+    global.Sfx.over();
+
+    if (data.score > bestScore()) store.bests[bestKey()] = data.score;
+    if (data.bestWord) {
+      if (!store.bestWord || data.bestWord.word.length > store.bestWord.word.length) {
+        store.bestWord = { word: data.bestWord.word, coins: data.bestWord.coins };
+      }
+    }
+    saveStore();
+
+    var rows = '' +
+      row('SCORE', data.score.toLocaleString()) +
+      row('LINES', data.lines) +
+      row('LEVEL', data.level) +
+      row('TIME', formatTime(data.elapsed));
+    if (mode === 'word') {
+      rows += row('WORDS', data.words + ' 語') +
+        row('COINS', '◉ ' + data.coins.toLocaleString()) +
+        row('LONGEST', data.bestWord ? data.bestWord.word.toUpperCase() : '—');
+    }
+
+    showOverlay(
+      '<h3>GAME OVER</h3>' +
+      (mode === 'word'
+        ? '<p>この試合で貯めた U-Speak コイン</p><div class="big">◉ ' + data.coins.toLocaleString() + '</div>'
+        : '<p>' + (data.reason === 'lock out' ? 'ロックアウト' : 'ブロックアウト') + '</p>') +
+      '<div class="result">' + rows + '</div>' +
+      '<p>' + diff.name + '（' + diff.jp + '）のハイスコア ' + bestScore().toLocaleString() +
+      ' ／ 累計コイン ◉ ' + store.wallet.toLocaleString() + '</p>' +
+      '<p><kbd>Enter</kbd> でもう一度</p>'
+    );
+  }
+
+  function row(label, value) {
+    return '<div><span>' + label + '</span><b>' + value + '</b></div>';
+  }
+
+  // ---- トースト ---------------------------------------------------------
+  function toast(text, sub, cls) {
+    var el = document.createElement('div');
+    el.className = 'toast ' + (cls || '');
+    el.innerHTML = text + (sub ? '<small>' + sub + '</small>' : '');
+    $('toasts').appendChild(el);
+    setTimeout(function () { el.remove(); }, 1500);
+  }
+
+  // ---- オーバーレイ -----------------------------------------------------
+  function showOverlay(html) {
+    var el = $('overlay');
+    el.innerHTML = '<div>' + html + '</div>';
+    el.classList.add('is-open');
+  }
+  function hideOverlay() { $('overlay').classList.remove('is-open'); }
+
+  function difficultyTable() {
+    return '<div class="result diff-table">' + global.Difficulty.summary(diff.key, mode).map(function (r) {
+      return '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>';
+    }).join('') + '</div>';
+  }
+
+  function titleOverlay() {
+    var head = '<p class="diff-line"><b>' + diff.name + '</b>（' + diff.jp + '）／ ' + diff.note + '</p>';
+    if (mode === 'word') {
+      showOverlay(
+        '<h3>WORD MODE</h3>' +
+        '<p>アルファベット付きのミノを積んで、<br>タテ・ヨコに <b>' + diff.minWordLength +
+        '文字以上の英単語</b> を作ると消えます。</p>' +
+        '<p>長い単語ほど倍率が大きい（3文字 ×1 → 8文字 ×20）。<br>消えたあとは落下して <b>連鎖</b> します。</p>' +
+        '<p>そろった行はテトリスと同じようにライン消去。</p>' +
+        head + difficultyTable() +
+        '<p>辞書 ' + global.Words.size().toLocaleString() + ' 語 ／ ハイスコア ' + bestScore().toLocaleString() + '</p>' +
+        '<p><kbd>Enter</kbd> またはクリックで開始</p>'
+      );
+    } else {
+      showOverlay(
+        '<h3>CLASSIC MODE</h3>' +
+        '<p>ガイドライン準拠のテトリス。<br>SRS回転・7-bag・ホールド・ゴースト・<br>ロックディレイ・T-Spin・B2B・コンボ対応。</p>' +
+        head + difficultyTable() +
+        '<p>ハイスコア ' + bestScore().toLocaleString() + '</p>' +
+        '<p><kbd>Enter</kbd> またはクリックで開始</p>'
+      );
+    }
+  }
+
+  function onConfirm() {
+    if (!running) startGame();
+    else if (paused) togglePause();
+  }
+
+  $('overlay').addEventListener('click', function () { onConfirm(); });
+
+  // ---- ゲーム進行 -------------------------------------------------------
+  function startGame() {
+    engine.reset(mode, startLevelFor(), diff);
+    engine.start();
+    renderer.resize(engine);
+    lastCoins = 0;
+    running = true;
+    paused = false;
+    input.enabled = true;
+    hideOverlay();
+    renderWordLog();
+    global.Sfx.ensure();
+  }
+
+  function togglePause() {
+    if (!running) return;
+    paused = !paused;
+    input.enabled = !paused;
+    if (paused) {
+      showOverlay('<h3>PAUSED</h3><p><kbd>P</kbd> / <kbd>Esc</kbd> / クリックで再開</p>');
+    } else {
+      hideOverlay();
+    }
+  }
+
+  function doReroll() {
+    if (mode !== 'word' || !running || paused) return;
+    if (engine.phase !== 'falling') return;
+    if (engine.coins < diff.rerollCost) {
+      toast('コインが足りません', '◉ ' + diff.rerollCost + ' 必要', 'is-chain');
+      return;
+    }
+    if (engine.rerollLetters()) engine.coins -= diff.rerollCost;
+  }
+
+  function restage() {
+    running = false;
+    paused = false;
+    input.enabled = false;
+    renderer.showGhost = store.settings.ghost && diff.ghost;
+    engine.reset(mode, startLevelFor(), diff);
+    renderer.resize(engine);
+    renderWordLog();
+    updateRerollLabel();
+    titleOverlay();
+  }
+
+  function setMode(next) {
+    if (mode === next) return;
+    mode = next;
+    document.body.setAttribute('data-mode', mode);
+    Array.prototype.forEach.call(document.querySelectorAll('.mode-btn'), function (btn) {
+      var on = btn.getAttribute('data-mode') === mode;
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    restage();
+  }
+
+  function setDifficulty(key) {
+    if (diff.key === key) return;
+    diff = global.Difficulty.get(key);
+    store.difficulty = diff.key;
+    saveStore();
+    Array.prototype.forEach.call(document.querySelectorAll('.diff-btn'), function (btn) {
+      var on = btn.getAttribute('data-difficulty') === diff.key;
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    restage();
+  }
+
+  function updateRerollLabel() {
+    var cost = $('reroll-cost');
+    if (cost) cost.textContent = '◉' + diff.rerollCost;
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('.mode-btn'), function (btn) {
+    btn.addEventListener('click', function () { setMode(btn.getAttribute('data-mode')); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.diff-btn'), function (btn) {
+    btn.addEventListener('click', function () { setDifficulty(btn.getAttribute('data-difficulty')); });
+  });
+
+  // ---- HUD --------------------------------------------------------------
+  function formatTime(ms) {
+    var total = Math.floor(ms / 1000);
+    var m = Math.floor(total / 60);
+    var s = total % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function renderWordLog() {
+    var ul = $('word-log');
+    if (!ul) return;
+    ul.innerHTML = engine.wordLog.map(function (w) {
+      return '<li><span class="w">' + w.word + '</span><span class="c">◉' + w.coins + '</span>' +
+        (w.meaning ? '<span class="m">' + w.meaning + '</span>' : '') + '</li>';
+    }).join('');
+    var best = $('best-word');
+    var label = engine.bestWord ? engine.bestWord.word : (store.bestWord ? store.bestWord.word : null);
+    best.querySelector('b').textContent = label ? label : '—';
+  }
+
+  function updateHud() {
+    var s = engine.stats();
+    $('stat-score').textContent = s.score.toLocaleString();
+    $('stat-level').textContent = s.level;
+    $('stat-lines').textContent = s.lines;
+    $('stat-time').textContent = formatTime(s.elapsed);
+    $('stat-best').textContent = bestScore().toLocaleString();
+    $('run-coins').textContent = s.coins.toLocaleString();
+    $('run-words').textContent = s.words;
+    $('wallet-total').textContent = store.wallet.toLocaleString();
+
+    var btn = $('btn-reroll');
+    btn.disabled = !(running && !paused && mode === 'word' && engine.phase === 'falling' &&
+      s.coins >= diff.rerollCost);
+  }
+
+  $('btn-reroll').addEventListener('click', doReroll);
+
+  // ---- 設定 -------------------------------------------------------------
+  function toggleSound() {
+    store.settings.sound = !store.settings.sound;
+    global.Sfx.enabled = store.settings.sound;
+    $('btn-sound').classList.toggle('is-off', !store.settings.sound);
+    saveStore();
+  }
+  $('btn-sound').addEventListener('click', toggleSound);
+  $('btn-sound').classList.toggle('is-off', !store.settings.sound);
+
+  $('btn-settings').addEventListener('click', function () { $('settings').hidden = false; });
+  $('settings-close').addEventListener('click', function () { $('settings').hidden = true; saveStore(); });
+  $('settings').addEventListener('click', function (e) {
+    if (e.target === $('settings')) { $('settings').hidden = true; saveStore(); }
+  });
+
+  function bindRange(id, valueId, apply) {
+    var el = $(id);
+    el.value = apply.get();
+    $(valueId).textContent = el.value;
+    el.addEventListener('input', function () {
+      $(valueId).textContent = el.value;
+      apply.set(parseInt(el.value, 10));
+    });
+  }
+  bindRange('das', 'das-value', {
+    get: function () { return store.settings.das; },
+    set: function (v) { store.settings.das = v; input.das = v; }
+  });
+  bindRange('arr', 'arr-value', {
+    get: function () { return store.settings.arr; },
+    set: function (v) { store.settings.arr = v; input.arr = v; }
+  });
+  bindRange('start-level', 'level-value', {
+    get: function () { return store.settings.startLevel; },
+    set: function (v) { store.settings.startLevel = v; }
+  });
+  $('ghost').checked = store.settings.ghost;
+  $('ghost').addEventListener('change', function () {
+    store.settings.ghost = $('ghost').checked;
+    renderer.showGhost = store.settings.ghost && diff.ghost;
+    saveStore();
+  });
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden && running && !paused) togglePause();
+  });
+
+  // ---- ループ -----------------------------------------------------------
+  function frame(now) {
+    var dt = Math.min(now - lastTime, 100);
+    lastTime = now;
+
+    if (running && !paused) {
+      input.update(dt);
+      engine.update(dt);
+
+      var delta = engine.coins - lastCoins;
+      if (delta > 0) { store.wallet += delta; saveStore(); }
+      lastCoins = engine.coins;
+    }
+
+    renderer.draw(engine, dt);
+    renderer.drawHold(engine);
+    renderer.drawNext(engine);
+    updateHud();
+    requestAnimationFrame(frame);
+  }
+
+  // ---- 起動 -------------------------------------------------------------
+  // デバッグ／自動テスト用のハンドル
+  global.USpeakGame = {
+    engine: engine,
+    renderer: renderer,
+    input: input,
+    store: store,
+    start: startGame,
+    setMode: setMode,
+    setDifficulty: setDifficulty,
+    state: function () {
+      return {
+        mode: mode, difficulty: diff.key, running: running, paused: paused,
+        phase: engine.phase, stats: engine.stats()
+      };
+    }
+  };
+
+  document.body.setAttribute('data-mode', mode);
+  Array.prototype.forEach.call(document.querySelectorAll('.diff-btn'), function (btn) {
+    var on = btn.getAttribute('data-difficulty') === diff.key;
+    btn.classList.toggle('is-active', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  updateRerollLabel();
+  renderer.resize(engine);
+  global.addEventListener('resize', function () { renderer.resize(engine); });
+  renderWordLog();
+  titleOverlay();
+  lastTime = performance.now();
+  requestAnimationFrame(frame);
+})(window);
+</script>
+</body>
+</html>

@@ -114,6 +114,16 @@ python3 -m http.server 8000
 # → http://localhost:8000
 ```
 
+### 単一ファイル版
+
+`uspeak-tetris.html` は CSS も JS も辞書もすべて埋め込んだ1枚版（約140KB）。
+このファイルだけコピーすれば、どこでもダブルクリックで遊べる（外部通信ゼロ）。
+各ソースを編集したあとは次のコマンドで作り直す。
+
+```bash
+node tools/build-single.js     # または npm run build
+```
+
 ---
 
 ## ファイル構成
@@ -131,6 +141,8 @@ js/renderer.js        Canvas 描画
 js/input.js           キーボード／タッチ入力（DAS・ARR）
 js/audio.js           WebAudio による効果音（音源ファイル不要）
 js/main.js            画面との結線・保存データ・ゲームループ
+tools/build-single.js 単一ファイル版のビルドスクリプト
+uspeak-tetris.html    単一ファイル版（自動生成）
 tests/engine.test.js  ルールの自動テスト
 ```
 
