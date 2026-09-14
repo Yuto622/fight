@@ -1,0 +1,15 @@
+{
+  "name": "puyo-uspeak",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A faithful Puyo Puyo engine plus U-SPEAK mode, where the puyos are alphabet letters and connecting them spells English words.",
+  "type": "module",
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "test": "node --test tests/*.test.js",
+    "build:dict": "node tools/build-dictionary.mjs"
+  },
+  "devDependencies": {
+    "wordlist-english": "^1.2.1"
+  }
+}
