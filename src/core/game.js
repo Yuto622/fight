@@ -89,6 +89,8 @@ export class Game {
     /** Cells mid-animation, read by the renderer. */
     this.popping = [];
     this.falling = [];
+    /** Length of the current fall animation, so the renderer can interpolate. */
+    this.dropDuration = 0;
     /** The most recent chain step, for the HUD pop-up. */
     this.lastStep = null;
 

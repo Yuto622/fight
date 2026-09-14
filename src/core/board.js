@@ -208,6 +208,18 @@ export class Board {
   }
 
   /**
+   * Copies the field.  Cell objects are shared rather than duplicated: they
+   * are never mutated once placed, only moved or removed.
+   *
+   * @returns {Board}
+   */
+  clone() {
+    const copy = new Board(this.cols, this.rows);
+    copy.cells = this.cells.slice();
+    return copy;
+  }
+
+  /**
    * Reads the field back as one string per row, top row first.  Used by the
    * tests and by the debug overlay.
    *
