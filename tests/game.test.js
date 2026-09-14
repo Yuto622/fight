@@ -201,6 +201,27 @@ test('nuisance is offset by what the field is holding', () => {
   assert.equal(game.incomingGarbage, 2);
 });
 
+test('a chain cancels nuisance that arrived while it was resolving', () => {
+  const game = newGame(new ColorRule(), { garbage: true });
+  // The opponent's attack lands first, with nothing yet to offset it.
+  assert.equal(game.receiveGarbage(20), 20);
+  assert.equal(game.incomingGarbage, 20);
+
+  // Then this field finishes a chain worth well over 20 nuisance.
+  loadAndResolve(game, [
+    '2.....',
+    '2.....',
+    '2.....',
+    '1.....',
+    '1.....',
+    '1.....',
+    '12....',
+  ]);
+  // 360 points is 5 nuisance, so 5 of the 20 are wiped out and the rest land.
+  assert.equal(game.outgoingGarbage, 0);
+  assert.equal(game.board.count(), 15, '15 of the 20 nuisance puyos fell');
+});
+
 test('nuisance drops as evenly as it can across the columns', () => {
   const game = newGame(new ColorRule(), { garbage: true });
   game.incomingGarbage = 12;

@@ -349,7 +349,13 @@ export class Game {
 
   /** Chain is over: settle nuisance, then bring in the next pair. */
   endTurn() {
-    if (this.chain > 0) this.emit({ type: 'chainend', chain: this.chain });
+    if (this.chain > 0) {
+      // Cancel first, then hand over what is left: a chain has to be able to
+      // wipe out nuisance that arrived while it was still resolving, which is
+      // the whole point of offsetting.
+      this.cancelIncoming();
+      this.emit({ type: 'chainend', chain: this.chain });
+    }
 
     if (this.board.get(DEATH_COL, DEATH_ROW)) {
       this.gameOver('topout');
@@ -375,6 +381,19 @@ export class Game {
       this.allClearBonusPending = false;
     }
     this.outgoingGarbage += total;
+  }
+
+  /**
+   * Spends this field's unsent nuisance on cancelling whatever is queued to
+   * fall on it.
+   *
+   * @returns {number} how much was cancelled
+   */
+  cancelIncoming() {
+    const offset = Math.min(this.outgoingGarbage, this.incomingGarbage);
+    this.outgoingGarbage -= offset;
+    this.incomingGarbage -= offset;
+    return offset;
   }
 
   /**
