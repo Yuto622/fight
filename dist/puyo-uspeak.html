@@ -1464,10 +1464,17 @@ class PairQueue {
     return this.pending[index];
   }
 
-  /** @returns {object[]} the preview pairs, nearest first. */
+  /**
+   * The pairs waiting behind the one in play, nearest first.
+   *
+   * `take` removes the pair it hands out, so everything still queued is
+   * genuinely upcoming: the window starts at index 0, not 1.
+   *
+   * @returns {object[]}
+   */
   preview() {
     this.fill();
-    return this.pending.slice(1, this.previewCount + 1);
+    return this.pending.slice(0, this.previewCount);
   }
 
   /** @returns {object} takes the front pair. */

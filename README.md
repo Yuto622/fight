@@ -23,6 +23,20 @@ static file server works.
 open it in a browser, no server and no install. Rebuild it with
 `npm run build:standalone` after changing anything in `src/`.
 
+## What it looks like
+
+| U-SPEAK | CLASSIC |
+| --- | --- |
+| ![Spelling GRIDS for 220 points and 4 coins](docs/screenshots/02-uspeak-word.png) | ![A three-chain in classic mode](docs/screenshots/03-classic-chain.png) |
+
+| VS COM | The word book |
+| --- | --- |
+| ![Nuisance puyos arriving from the CPU](docs/screenshots/04-versus-com.png) | ![Every word ever spelled, kept between sessions](docs/screenshots/06-word-book.png) |
+
+<p align="center">
+  <img src="docs/screenshots/07-mobile.png" alt="The phone layout, with the on-screen pad" width="300">
+</p>
+
 ## Controls
 
 | Action | Keys |
