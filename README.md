@@ -8,7 +8,8 @@ Two games share one engine:
   chains multiply, nuisance puyos rain on your opponent.
 - **U-SPEAK** — the same field, the same pairs, the same chains, except every
   puyo carries a letter. A run pops when it **spells an English word**, read
-  across (→) or down (↓). The longer the word, the bigger the payout in
+  across (→) or down (↓). The word pops with **its Japanese meaning**, to a
+  rising flourish that gets longer the longer the word is, and pays out in
   **U-Speak Coins**.
 
 ```
@@ -106,6 +107,12 @@ Lay the *last* letter down first and work back towards the first — `S`, `T`,
 `A`, `C` — and no intermediate run is ever a word until the whole thing is.
 It is chain planning, in English.
 
+**It tells you what you spelled.** Every word pops with a short Japanese
+gloss — CAT → 猫, SCHOOL → 学校 — and the same gloss follows it into the word
+log, the end-of-game summary and the word book. 31,000 of the 34,000 words are
+covered (91%); inflected forms fall back to their base word, so GRIDS reads as
+格子.
+
 **Scoring and coins.**
 
 | Word length | Points | U-Speak Coins |
@@ -134,6 +141,23 @@ constantly, which suits a learner; at 4 or 5 you have to build.
 Every word you spell goes into the **word book**, which is kept between
 sessions along with your coins and high scores.
 
+## Sound
+
+Everything you hear is synthesised at runtime with Web Audio — there is not a
+single audio file in the repository, which is what lets the whole game ship as
+one HTML file.
+
+That also buys something a set of samples could not: the sound is derived from
+what just happened. A word pops as one rising pentatonic note **per letter**,
+so a six-letter word is audibly a bigger event than a three-letter one, and
+the whole run is transposed up by the chain it landed in. Everyday words get a
+chime on top. In classic mode each link of a chain steps up in pitch, the way
+the original game's chain voice does.
+
+Toggle it with the ♪ button in the top bar, or on the title screen. Browsers
+will not start audio before you interact with the page, so the first key press
+is what switches it on.
+
 ## Layout
 
 ```
@@ -150,12 +174,15 @@ src/
       colorRule.js   four of a colour
       wordRule.js    English words, across and down
   data/
-    dictionary.js  generated word list (see below)
-    letters.js     letter frequencies and colour grouping
-  ui/              canvas renderer, input, HUD, palette
+    dictionary.js    generated word list (see below)
+    translations.js  generated Japanese glosses (see below)
+    letters.js       letter frequencies and colour grouping
+  ui/              canvas renderer, input, HUD, palette, Web Audio sound
   storage.js       coins, high scores, word book, settings
 tools/
   build-dictionary.mjs   regenerates src/data/dictionary.js
+  build-translations.mjs regenerates src/data/translations.js
+  gloss.mjs              the definition-to-gloss rules, unit tested
   build-standalone.mjs   inlines everything into dist/puyo-uspeak.html
   serve.mjs              the dev server behind `npm start`
 tests/                   node:test, run with `npm test`
@@ -175,4 +202,26 @@ English: those are the ones the game highlights and pays a bonus for.
 > Word lists derived from SCOWL, Copyright 2000-2016 by Kevin Atkinson.
 > See `src/data/dictionary.js` for the full permission notice.
 
+## The Japanese glosses
+
+From [ejdict-hand][ejdict], a public-domain (CC0) English-Japanese dictionary,
+via `npm run build:translations`. Its entries are full dictionary definitions —
+`run` alone runs to fifty senses — so `tools/gloss.mjs` reduces each to
+something that fits in a pop-up:
+
+- keep the first sense, skipping cross-references like `=acrylic resin`
+- strip the notation: `〈C〉` countability, `《...》` grammar notes, and nested
+  parentheticals, before reading the `『...』` marks that flag the headword's
+  core meaning
+- take at most two synonyms, up to twelve characters
+- discard anything with no Japanese left in it
+
+Regenerating needs the source cloned next to this repository:
+
+```
+git clone https://github.com/kujirahand/EJDict ../EJDict
+npm run build:translations ../EJDict/src
+```
+
 [scowl]: http://wordlist.aspell.net/
+[ejdict]: https://github.com/kujirahand/EJDict

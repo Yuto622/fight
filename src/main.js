@@ -6,6 +6,8 @@ import { Rng } from './core/rng.js';
 import { FieldRenderer } from './ui/renderer.js';
 import { InputController } from './ui/input.js';
 import { Hud } from './ui/hud.js';
+import { SoundBoard } from './ui/audio.js';
+import { dictionary } from './core/wordlist.js';
 import { profile } from './storage.js';
 
 /** Fixed simulation step.  Rendering is free-running; physics is not. */
@@ -36,6 +38,8 @@ const dom = {
   optMinWord: document.getElementById('opt-min-word'),
   optAi: document.getElementById('opt-ai'),
   optGhost: document.getElementById('opt-ghost'),
+  optSound: document.getElementById('opt-sound'),
+  muteButton: document.getElementById('mute-button'),
   players: [document.getElementById('player-1'), document.getElementById('player-2')],
 };
 
@@ -43,6 +47,7 @@ const dom = {
 let session = null;
 let lastFrame = 0;
 let accumulator = 0;
+const sound = new SoundBoard({ muted: !profile.load().settings.sound });
 
 // ------------------------------------------------------------------ setup --
 
@@ -94,11 +99,26 @@ function createSide(root, { mode, settings, seed, versus, cpu }) {
 
 /** Routes an engine event to the banners, the word log and the opponent. */
 function handleEvent(side, event) {
+  // Only the human's field makes noise; two fields chiming at once is a mess.
+  const audible = !side.isCpu;
   switch (event.type) {
     case 'pop': {
       side.hud.showChain(event.chain);
-      if (event.step.words && event.step.words.length) side.hud.showWords(event.step);
+      const words = event.step.words || [];
+      if (words.length) side.hud.showWords(event.step);
       if (event.chain >= 3) side.renderer.bump(0.35 + event.chain * 0.12);
+      if (audible) {
+        if (words.length) {
+          const longest = words.reduce((best, word) => (word.length > best.length ? word : best), '');
+          sound.word({
+            length: longest.length,
+            chain: event.chain,
+            common: dictionary.isCommon(longest),
+          });
+        } else {
+          sound.chain(event.chain);
+        }
+      }
       for (const group of event.groups) {
         if (!group.word) continue;
         side.hud.addWord(group, side.rule.baseValue(group.word));
@@ -108,6 +128,22 @@ function handleEvent(side, event) {
     case 'allclear':
       side.hud.showAllClear();
       side.renderer.bump(0.8);
+      if (audible) sound.allClear();
+      break;
+    case 'lock':
+      if (audible) sound.land();
+      break;
+    case 'move':
+      if (audible) sound.move();
+      break;
+    case 'rotate':
+      if (audible) sound.rotate();
+      break;
+    case 'garbage':
+      if (audible && event.amount > 0) sound.garbage();
+      break;
+    case 'levelup':
+      if (audible) sound.levelUp();
       break;
     case 'chainend': {
       // Nuisance is handed over once the whole chain has finished, which is
@@ -120,6 +156,7 @@ function handleEvent(side, event) {
       break;
     }
     case 'gameover':
+      if (side === (session && session.sides[0])) sound.gameOver();
       finishGame(side);
       break;
     default:
@@ -200,7 +237,10 @@ function startGame(mode) {
     minWordLength: Number(dom.optMinWord.value),
     ghost: dom.optGhost.checked,
     ai: dom.optAi.value,
+    sound: dom.optSound.checked,
   });
+  sound.setMuted(!settings.sound);
+  sound.unlock();
 
   const versus = mode === 'versus';
   const seed = (Math.random() * 0xffffffff) >>> 0;
@@ -327,13 +367,33 @@ function renderResults(player, { won, banked }) {
   for (const entry of player.game.wordLog) {
     if (seen.has(entry.word)) continue;
     seen.add(entry.word);
-    const chip = document.createElement('span');
-    chip.className = 'chip';
+    const chip = wordChip(entry.word);
     if (entry.length >= 6) chip.classList.add('chip--long');
     else if (fresh.has(entry.word)) chip.classList.add('chip--new');
-    chip.textContent = entry.word;
     dom.resultWords.append(chip);
   }
+}
+
+/**
+ * A word chip carrying its Japanese, so every list doubles as a vocabulary
+ * list rather than a scoreboard.
+ *
+ * @param {string} word
+ * @returns {HTMLElement}
+ */
+function wordChip(word) {
+  const chip = document.createElement('span');
+  chip.className = 'chip';
+  const english = document.createElement('b');
+  english.textContent = word;
+  chip.append(english);
+  const japanese = dictionary.translate(word);
+  if (japanese) {
+    const meaning = document.createElement('i');
+    meaning.textContent = japanese;
+    chip.append(meaning);
+  }
+  return chip;
 }
 
 function openWordBook() {
@@ -346,15 +406,22 @@ function openWordBook() {
     dom.wordbookList.append(empty);
   }
   for (const word of words) {
-    const chip = document.createElement('span');
-    chip.className = word.length >= 6 ? 'chip chip--long' : 'chip';
-    chip.textContent = word;
+    const chip = wordChip(word);
+    if (word.length >= 6) chip.classList.add('chip--long');
     dom.wordbookList.append(chip);
   }
   show(dom.wordbook, true);
 }
 
 // ------------------------------------------------------------------ wiring --
+
+/** @param {boolean} on */
+function applySound(on) {
+  sound.setMuted(!on);
+  dom.optSound.checked = on;
+  dom.muteButton.textContent = on ? '♪ ON' : '♪ OFF';
+  dom.muteButton.setAttribute('aria-pressed', String(!on));
+}
 
 function wire() {
   if (navigator.maxTouchPoints > 0 || 'ontouchstart' in window) {
@@ -367,6 +434,23 @@ function wire() {
   dom.optMinWord.value = String(settings.minWordLength);
   dom.optAi.value = settings.ai;
   dom.optGhost.checked = Boolean(settings.ghost);
+  applySound(Boolean(settings.sound));
+
+  // Browsers will not start audio until the page has been interacted with.
+  const startAudio = () => sound.unlock();
+  window.addEventListener('pointerdown', startAudio, { once: true });
+  window.addEventListener('keydown', startAudio, { once: true });
+
+  dom.muteButton.addEventListener('click', () => {
+    const on = !dom.optSound.checked;
+    applySound(on);
+    profile.saveSettings({ sound: on });
+    if (on) sound.unlock();
+  });
+  dom.optSound.addEventListener('change', () => {
+    applySound(dom.optSound.checked);
+    profile.saveSettings({ sound: dom.optSound.checked });
+  });
 
   dom.optLevel.addEventListener('input', () => {
     dom.optLevelOut.value = dom.optLevel.value;

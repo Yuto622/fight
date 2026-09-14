@@ -24,6 +24,7 @@ function defaults() {
       minWordLength: 3,
       ghost: true,
       ai: 'normal',
+      sound: true,
     },
   };
 }

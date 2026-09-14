@@ -1,5 +1,6 @@
 import { colorAt } from './theme.js';
 import { CELL_GARBAGE } from '../core/constants.js';
+import { dictionary } from '../core/wordlist.js';
 
 /** How long a chain or word banner stays up. */
 const POPUP_TIME = 1100;
@@ -9,6 +10,13 @@ const WORD_LOG_LIMIT = 10;
 /** @param {number} value @returns {string} thousands-separated */
 function formatNumber(value) {
   return Math.round(value).toLocaleString('en-US');
+}
+
+/** Glosses come from a generated data file, but they still land in innerHTML. */
+function escapeHtml(text) {
+  return String(text).replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[character]));
 }
 
 /**
@@ -152,9 +160,12 @@ export class Hud {
     if (!step.words || !step.words.length) return;
     const longest = step.words.reduce((best, word) => (word.length > best.length ? word : best), '');
     const extra = step.words.length > 1 ? ` +${step.words.length - 1}` : '';
+    const japanese = dictionary.translate(longest);
+    const meaning = japanese ? `<em>${escapeHtml(japanese)}</em>` : '';
     this.flash(
       'wordPopup',
-      `${longest}${extra}<small>+${formatNumber(step.score)} &nbsp; ${step.coins} COINS</small>`,
+      `${escapeHtml(longest)}${extra}${meaning}`
+        + `<small>+${formatNumber(step.score)} &nbsp; ${step.coins} COINS</small>`,
     );
   }
 
@@ -166,18 +177,27 @@ export class Hud {
   addWord(entry, points) {
     const list = this.fields.wordLog;
     if (!list) return;
-    this.wordLog.unshift({ ...entry, points });
+    this.wordLog.unshift({ ...entry, points, japanese: dictionary.translate(entry.word) });
     this.wordLog.length = Math.min(this.wordLog.length, WORD_LOG_LIMIT);
     list.replaceChildren();
     for (const item of this.wordLog) {
       const row = document.createElement('li');
+      const head = document.createElement('div');
+      head.className = 'wordlog__head';
       const word = document.createElement('span');
       word.className = item.common ? 'w common' : 'w';
       word.textContent = item.word;
       const value = document.createElement('span');
       value.className = 'p';
       value.textContent = `+${formatNumber(item.points)}`;
-      row.append(word, value);
+      head.append(word, value);
+      row.append(head);
+      if (item.japanese) {
+        const meaning = document.createElement('div');
+        meaning.className = 'wordlog__jp';
+        meaning.textContent = item.japanese;
+        row.append(meaning);
+      }
       list.append(row);
     }
   }

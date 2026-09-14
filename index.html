@@ -19,6 +19,7 @@
       <span class="coin" aria-hidden="true"></span>
       <span id="coin-total">0</span>
     </div>
+    <button class="topbar__quit" id="mute-button" type="button" aria-pressed="false">&#9834; ON</button>
     <button class="topbar__quit" id="quit-button" type="button">MENU</button>
   </header>
 
@@ -67,7 +68,8 @@
         </div>
         <div class="legend" data-only="uspeak">
           <span class="panel__label">HOW TO SPELL</span>
-          <p>Read <b>&rarr; across</b> and <b>&darr; down</b>.</p>
+          <p>Read <b>&rarr; across</b> and <b>&darr; down</b>.<br>
+             A word pops with its Japanese meaning.</p>
           <p class="legend__tip"><b>Tip:</b> build backwards. Lay the last
              letter first, so a short word cannot pop before you finish the
              long one.</p>
@@ -168,6 +170,10 @@
       <label class="option option--check">
         <input type="checkbox" id="opt-ghost" checked>
         <span>Show landing guide</span>
+      </label>
+      <label class="option option--check">
+        <input type="checkbox" id="opt-sound" checked>
+        <span>Sound</span>
       </label>
     </div>
 

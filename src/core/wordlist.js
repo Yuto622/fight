@@ -4,6 +4,7 @@ import {
   MIN_WORD_LENGTH,
   MAX_WORD_LENGTH,
 } from '../data/dictionary.js';
+import { TRANSLATION_CHUNKS } from '../data/translations.js';
 
 /**
  * Unpacks the generated dictionary into lookup sets.
@@ -24,14 +25,32 @@ function unpack(blocks) {
   return words;
 }
 
+/** Unpacks the "word<TAB>gloss" chunks into a lookup map. */
+function unpackTranslations() {
+  const map = new Map();
+  for (const chunk of TRANSLATION_CHUNKS) {
+    for (const line of chunk.split('\n')) {
+      const tab = line.indexOf('\t');
+      if (tab < 1) continue;
+      map.set(line.slice(0, tab), line.slice(tab + 1));
+    }
+  }
+  return map;
+}
+
 let all = null;
 let common = null;
+let japanese = null;
 
 function ensureLoaded() {
   if (!all) {
     all = unpack(WORD_BLOCKS);
     common = unpack(COMMON_WORD_BLOCKS);
   }
+}
+
+function ensureTranslations() {
+  if (!japanese) japanese = unpackTranslations();
 }
 
 /** The English word list the game scores against. */
@@ -67,5 +86,22 @@ export const dictionary = {
   isCommon(word) {
     ensureLoaded();
     return common.has(word.toLowerCase());
+  },
+
+  /**
+   * The Japanese for a word, so a learner sees what they just spelled.
+   *
+   * @param {string} word
+   * @returns {string} a short gloss, or '' when the word is not covered
+   */
+  translate(word) {
+    ensureTranslations();
+    return japanese.get(word.toLowerCase()) || '';
+  },
+
+  /** @returns {number} how many words carry a Japanese gloss. */
+  get translatedCount() {
+    ensureTranslations();
+    return japanese.size;
   },
 };

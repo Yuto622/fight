@@ -252,9 +252,22 @@ b { color: var(--ink); }
 }
 .wordlog__list li {
   display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.wordlog__head {
+  display: flex;
   justify-content: space-between;
   gap: 6px;
   letter-spacing: 0.06em;
+}
+.wordlog__jp {
+  font-size: 10px;
+  color: var(--ink-dim);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 .wordlog__list .w { text-transform: uppercase; }
 .wordlog__list .p { color: var(--accent); font-variant-numeric: tabular-nums; }
@@ -293,6 +306,14 @@ b { color: var(--ink); }
   color: #06210f;
   background: var(--uspeak);
   box-shadow: 0 6px 20px rgba(79, 214, 111, 0.45);
+}
+.popup--word em {
+  display: block;
+  font-style: normal;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  font-weight: 700;
+  margin-top: 1px;
 }
 .popup--word small {
   display: block;
@@ -558,13 +579,23 @@ body.touch-device .touch { display: grid; }
 }
 
 .chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
   font-size: 11px;
   letter-spacing: 0.1em;
-  text-transform: uppercase;
-  padding: 4px 9px;
-  border-radius: 999px;
+  padding: 5px 10px;
+  border-radius: 12px;
   background: var(--panel);
   border: 1px solid var(--panel-line);
+}
+.chip b { text-transform: uppercase; font-weight: 700; }
+.chip i {
+  font-style: normal;
+  font-size: 10px;
+  letter-spacing: 0;
+  color: var(--ink-dim);
 }
 .chip--long { background: rgba(255, 204, 61, 0.18); border-color: var(--accent); }
 .chip--new { background: rgba(79, 214, 111, 0.18); border-color: var(--uspeak); }
