@@ -2,7 +2,6 @@
 (function (global) {
   'use strict';
 
-  var REROLL_COST = 15;
   var STORE_KEY = 'uspeak.tetris.v1';
 
   var $ = function (id) { return document.getElementById(id); };
@@ -10,8 +9,9 @@
   // ---- 保存データ -------------------------------------------------------
   var store = {
     wallet: 0,
-    best: { classic: 0, word: 0 },
+    bests: {},            // "モード:難易度" ごとのハイスコア
     bestWord: null,
+    difficulty: 'normal',
     settings: { das: 150, arr: 33, startLevel: 1, ghost: true, sound: true }
   };
 
@@ -22,8 +22,9 @@
       var data = JSON.parse(raw);
       if (data && typeof data === 'object') {
         store.wallet = data.wallet || 0;
-        store.best = Object.assign(store.best, data.best || {});
+        store.bests = Object.assign({}, data.bests || {});
         store.bestWord = data.bestWord || null;
+        if (data.difficulty && global.Difficulty.LEVELS[data.difficulty]) store.difficulty = data.difficulty;
         store.settings = Object.assign(store.settings, data.settings || {});
       }
     } catch (e) { /* localStorage が使えない環境では既定値のまま */ }
@@ -37,9 +38,20 @@
 
   // ---- 生成 -------------------------------------------------------------
   var mode = 'classic';
-  var engine = new global.TetrisEngine({ mode: mode, startLevel: store.settings.startLevel, onEvent: onEngineEvent });
+  var diff = global.Difficulty.get(store.difficulty);
+
+  function startLevelFor() {
+    // 設定スライダーが 1 のままなら、難易度ごとの開始レベルを使う
+    return store.settings.startLevel > 1 ? store.settings.startLevel : diff.startLevel;
+  }
+  function bestKey() { return mode + ':' + diff.key; }
+  function bestScore() { return store.bests[bestKey()] || 0; }
+
+  var engine = new global.TetrisEngine({
+    mode: mode, startLevel: startLevelFor(), difficulty: diff, onEvent: onEngineEvent
+  });
   var renderer = new global.Renderer($('board'), $('hold'), $('next'));
-  renderer.showGhost = store.settings.ghost;
+  renderer.showGhost = store.settings.ghost && diff.ghost;
   renderer.showLetters = true;   // 文字を持つのは WORD モードのミノだけ
   global.Sfx.enabled = store.settings.sound;
 
@@ -120,7 +132,7 @@
     input.enabled = false;
     global.Sfx.over();
 
-    if (data.score > (store.best[mode] || 0)) store.best[mode] = data.score;
+    if (data.score > bestScore()) store.bests[bestKey()] = data.score;
     if (data.bestWord) {
       if (!store.bestWord || data.bestWord.word.length > store.bestWord.word.length) {
         store.bestWord = { word: data.bestWord.word, coins: data.bestWord.coins };
@@ -145,7 +157,8 @@
         ? '<p>この試合で貯めた U-Speak コイン</p><div class="big">◉ ' + data.coins.toLocaleString() + '</div>'
         : '<p>' + (data.reason === 'lock out' ? 'ロックアウト' : 'ブロックアウト') + '</p>') +
       '<div class="result">' + rows + '</div>' +
-      '<p>累計コイン ◉ ' + store.wallet.toLocaleString() + ' ／ ハイスコア ' + (store.best[mode] || 0).toLocaleString() + '</p>' +
+      '<p>' + diff.name + '（' + diff.jp + '）のハイスコア ' + bestScore().toLocaleString() +
+      ' ／ 累計コイン ◉ ' + store.wallet.toLocaleString() + '</p>' +
       '<p><kbd>Enter</kbd> でもう一度</p>'
     );
   }
@@ -171,21 +184,31 @@
   }
   function hideOverlay() { $('overlay').classList.remove('is-open'); }
 
+  function difficultyTable() {
+    return '<div class="result diff-table">' + global.Difficulty.summary(diff.key, mode).map(function (r) {
+      return '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>';
+    }).join('') + '</div>';
+  }
+
   function titleOverlay() {
+    var head = '<p class="diff-line"><b>' + diff.name + '</b>（' + diff.jp + '）／ ' + diff.note + '</p>';
     if (mode === 'word') {
       showOverlay(
         '<h3>WORD MODE</h3>' +
-        '<p>アルファベット付きのミノを積んで、<br>タテ・ヨコに <b>3文字以上の英単語</b> を作ると消えます。</p>' +
+        '<p>アルファベット付きのミノを積んで、<br>タテ・ヨコに <b>' + diff.minWordLength +
+        '文字以上の英単語</b> を作ると消えます。</p>' +
         '<p>長い単語ほど倍率が大きい（3文字 ×1 → 8文字 ×20）。<br>消えたあとは落下して <b>連鎖</b> します。</p>' +
         '<p>そろった行はテトリスと同じようにライン消去。</p>' +
-        '<p>辞書 ' + global.Words.size().toLocaleString() + ' 語 ／ ハイスコア ' + (store.best.word || 0).toLocaleString() + '</p>' +
+        head + difficultyTable() +
+        '<p>辞書 ' + global.Words.size().toLocaleString() + ' 語 ／ ハイスコア ' + bestScore().toLocaleString() + '</p>' +
         '<p><kbd>Enter</kbd> またはクリックで開始</p>'
       );
     } else {
       showOverlay(
         '<h3>CLASSIC MODE</h3>' +
         '<p>ガイドライン準拠のテトリス。<br>SRS回転・7-bag・ホールド・ゴースト・<br>ロックディレイ・T-Spin・B2B・コンボ対応。</p>' +
-        '<p>ハイスコア ' + (store.best.classic || 0).toLocaleString() + '</p>' +
+        head + difficultyTable() +
+        '<p>ハイスコア ' + bestScore().toLocaleString() + '</p>' +
         '<p><kbd>Enter</kbd> またはクリックで開始</p>'
       );
     }
@@ -200,8 +223,7 @@
 
   // ---- ゲーム進行 -------------------------------------------------------
   function startGame() {
-    engine.startLevel = store.settings.startLevel;
-    engine.reset(mode, store.settings.startLevel);
+    engine.reset(mode, startLevelFor(), diff);
     engine.start();
     renderer.resize(engine);
     lastCoins = 0;
@@ -227,8 +249,23 @@
   function doReroll() {
     if (mode !== 'word' || !running || paused) return;
     if (engine.phase !== 'falling') return;
-    if (engine.coins < REROLL_COST) { toast('コインが足りません', '◉ ' + REROLL_COST + ' 必要', 'is-chain'); return; }
-    if (engine.rerollLetters()) engine.coins -= REROLL_COST;
+    if (engine.coins < diff.rerollCost) {
+      toast('コインが足りません', '◉ ' + diff.rerollCost + ' 必要', 'is-chain');
+      return;
+    }
+    if (engine.rerollLetters()) engine.coins -= diff.rerollCost;
+  }
+
+  function restage() {
+    running = false;
+    paused = false;
+    input.enabled = false;
+    renderer.showGhost = store.settings.ghost && diff.ghost;
+    engine.reset(mode, startLevelFor(), diff);
+    renderer.resize(engine);
+    renderWordLog();
+    updateRerollLabel();
+    titleOverlay();
   }
 
   function setMode(next) {
@@ -240,17 +277,32 @@
       btn.classList.toggle('is-active', on);
       btn.setAttribute('aria-selected', on ? 'true' : 'false');
     });
-    running = false;
-    paused = false;
-    input.enabled = false;
-    engine.reset(mode, store.settings.startLevel);
-    renderer.resize(engine);
-    renderWordLog();
-    titleOverlay();
+    restage();
+  }
+
+  function setDifficulty(key) {
+    if (diff.key === key) return;
+    diff = global.Difficulty.get(key);
+    store.difficulty = diff.key;
+    saveStore();
+    Array.prototype.forEach.call(document.querySelectorAll('.diff-btn'), function (btn) {
+      var on = btn.getAttribute('data-difficulty') === diff.key;
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    restage();
+  }
+
+  function updateRerollLabel() {
+    var cost = $('reroll-cost');
+    if (cost) cost.textContent = '◉' + diff.rerollCost;
   }
 
   Array.prototype.forEach.call(document.querySelectorAll('.mode-btn'), function (btn) {
     btn.addEventListener('click', function () { setMode(btn.getAttribute('data-mode')); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.diff-btn'), function (btn) {
+    btn.addEventListener('click', function () { setDifficulty(btn.getAttribute('data-difficulty')); });
   });
 
   // ---- HUD --------------------------------------------------------------
@@ -279,13 +331,14 @@
     $('stat-level').textContent = s.level;
     $('stat-lines').textContent = s.lines;
     $('stat-time').textContent = formatTime(s.elapsed);
-    $('stat-best').textContent = (store.best[mode] || 0).toLocaleString();
+    $('stat-best').textContent = bestScore().toLocaleString();
     $('run-coins').textContent = s.coins.toLocaleString();
     $('run-words').textContent = s.words;
     $('wallet-total').textContent = store.wallet.toLocaleString();
 
     var btn = $('btn-reroll');
-    btn.disabled = !(running && !paused && mode === 'word' && engine.phase === 'falling' && s.coins >= REROLL_COST);
+    btn.disabled = !(running && !paused && mode === 'word' && engine.phase === 'falling' &&
+      s.coins >= diff.rerollCost);
   }
 
   $('btn-reroll').addEventListener('click', doReroll);
@@ -330,7 +383,7 @@
   $('ghost').checked = store.settings.ghost;
   $('ghost').addEventListener('change', function () {
     store.settings.ghost = $('ghost').checked;
-    renderer.showGhost = store.settings.ghost;
+    renderer.showGhost = store.settings.ghost && diff.ghost;
     saveStore();
   });
   document.addEventListener('visibilitychange', function () {
@@ -367,12 +420,22 @@
     store: store,
     start: startGame,
     setMode: setMode,
+    setDifficulty: setDifficulty,
     state: function () {
-      return { mode: mode, running: running, paused: paused, phase: engine.phase, stats: engine.stats() };
+      return {
+        mode: mode, difficulty: diff.key, running: running, paused: paused,
+        phase: engine.phase, stats: engine.stats()
+      };
     }
   };
 
   document.body.setAttribute('data-mode', mode);
+  Array.prototype.forEach.call(document.querySelectorAll('.diff-btn'), function (btn) {
+    var on = btn.getAttribute('data-difficulty') === diff.key;
+    btn.classList.toggle('is-active', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  updateRerollLabel();
   renderer.resize(engine);
   global.addEventListener('resize', function () { renderer.resize(engine); });
   renderWordLog();

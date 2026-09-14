@@ -27,6 +27,14 @@
     </button>
   </div>
 
+  <div class="diffs" role="tablist" aria-label="難易度選択">
+    <span class="diffs-label">難易度</span>
+    <button class="diff-btn" data-difficulty="easy" role="tab" aria-selected="false">EASY<small>やさしい</small></button>
+    <button class="diff-btn is-active" data-difficulty="normal" role="tab" aria-selected="true">NORMAL<small>ふつう</small></button>
+    <button class="diff-btn" data-difficulty="hard" role="tab" aria-selected="false">HARD<small>むずかしい</small></button>
+    <button class="diff-btn" data-difficulty="expert" role="tab" aria-selected="false">EXPERT<small>鬼</small></button>
+  </div>
+
   <div class="wallet" title="これまでに貯めた U-Speak コインの合計">
     <span class="coin-icon">◉</span>
     <div>
@@ -60,7 +68,7 @@
 
     <section class="box word-only" id="box-reroll">
       <h2>LETTER REROLL</h2>
-      <button id="btn-reroll" class="action-btn">文字を引き直す <em>R</em><span class="cost">◉15</span></button>
+      <button id="btn-reroll" class="action-btn">文字を引き直す <em>R</em><span class="cost" id="reroll-cost">◉15</span></button>
       <p class="hint">落下中のミノの4文字を引き直します</p>
     </section>
   </aside>
@@ -145,7 +153,7 @@
       <input id="arr" type="range" min="0" max="120" step="1" value="33">
     </label>
     <label class="field">
-      <span>開始レベル <b id="level-value">1</b></span>
+      <span>開始レベル（1 なら難易度の既定値）<b id="level-value">1</b></span>
       <input id="start-level" type="range" min="1" max="15" step="1" value="1">
     </label>
     <label class="check"><input id="ghost" type="checkbox" checked> ゴーストを表示</label>
@@ -158,6 +166,7 @@
 <script src="js/dictionary.js"></script>
 <script src="js/meanings.js"></script>
 <script src="js/words.js"></script>
+<script src="js/difficulty.js"></script>
 <script src="js/tetromino.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/renderer.js"></script>

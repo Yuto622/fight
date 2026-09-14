@@ -36,30 +36,44 @@
     n: 1, o: 1, p: 3, q: 10, r: 1, s: 1, t: 1, u: 1, v: 4, w: 4, x: 8, y: 4, z: 10
   };
 
-  var pool = [];
-  Object.keys(WEIGHTS).forEach(function (ch) {
-    for (var i = 0; i < WEIGHTS[ch]; i++) pool.push(ch);
-  });
-
-  function randomLetter() { return pool[(Math.random() * pool.length) | 0]; }
-  function randomVowel() {
-    var bag = [];
-    VOWELS.forEach(function (v) { for (var i = 0; i < WEIGHTS[v]; i++) bag.push(v); });
-    return bag[(Math.random() * bag.length) | 0];
+  /* 母音バイアスごとに袋を作ってキャッシュする（bias が大きいほど母音が出やすい） */
+  var poolCache = Object.create(null);
+  function poolFor(bias) {
+    var key = String(bias);
+    if (poolCache[key]) return poolCache[key];
+    var pool = [];
+    Object.keys(WEIGHTS).forEach(function (ch) {
+      var weight = WEIGHTS[ch];
+      if (VOWELS.indexOf(ch) >= 0) weight = Math.max(1, Math.round(weight * bias));
+      for (var i = 0; i < weight; i++) pool.push(ch);
+    });
+    poolCache[key] = pool;
+    return pool;
   }
 
+  var vowelBag = [];
+  VOWELS.forEach(function (v) { for (var i = 0; i < WEIGHTS[v]; i++) vowelBag.push(v); });
+
+  function randomLetter(bias) {
+    var pool = poolFor(bias);
+    return pool[(Math.random() * pool.length) | 0];
+  }
+  function randomVowel() { return vowelBag[(Math.random() * vowelBag.length) | 0]; }
+
   /* 1ミノ分（4文字）を引く。母音が 0 個なら 1 つ差し替え、
-   * 母音が 4 個なら子音を 1 つ混ぜて、単語を作りやすい配分に整える。 */
-  function drawLetters(count) {
+   * 母音が 4 個なら子音を 1 つ混ぜて、単語を作りやすい配分に整える。
+   * bias は難易度から渡す母音の出やすさ（1が標準）。 */
+  function drawLetters(count, bias) {
     var n = count || 4;
+    var b = bias === undefined ? 1 : bias;
     var out = [];
-    for (var i = 0; i < n; i++) out.push(randomLetter());
+    for (var i = 0; i < n; i++) out.push(randomLetter(b));
     var vowels = out.filter(function (c) { return VOWELS.indexOf(c) >= 0; }).length;
     if (vowels === 0) out[(Math.random() * n) | 0] = randomVowel();
     if (vowels === n) {
       var idx = (Math.random() * n) | 0;
       var c;
-      do { c = randomLetter(); } while (VOWELS.indexOf(c) >= 0);
+      do { c = randomLetter(b); } while (VOWELS.indexOf(c) >= 0);
       out[idx] = c;
     }
     return out;
@@ -69,13 +83,13 @@
   /* 連続して埋まっているマスの並びから、長い単語を優先して切り出す。
    * 同じ並びの中では重ならないように取るが、横の単語と縦の単語は
    * 同じマスを共有してよい（クロスワードと同じ考え方）。 */
-  function scanRun(run) {
+  function scanRun(run, minLen) {
     var found = [];
     var i = 0;
-    while (i <= run.length - MIN_LEN) {
+    while (i <= run.length - minLen) {
       var matched = 0;
       var max = Math.min(MAX_LEN, run.length - i);
-      for (var len = max; len >= MIN_LEN; len--) {
+      for (var len = max; len >= minLen; len--) {
         var s = '';
         for (var k = 0; k < len; k++) s += run[i + k].letter;
         if (isWord(s)) {
@@ -89,7 +103,7 @@
     return found;
   }
 
-  function collectRuns(cellsInLine) {
+  function collectRuns(cellsInLine, minLen) {
     var runs = [];
     var cur = [];
     for (var i = 0; i < cellsInLine.length; i++) {
@@ -97,17 +111,19 @@
       if (cell && cell.letter) {
         cur.push(cell);
       } else {
-        if (cur.length >= MIN_LEN) runs.push(cur);
+        if (cur.length >= minLen) runs.push(cur);
         cur = [];
       }
     }
-    if (cur.length >= MIN_LEN) runs.push(cur);
+    if (cur.length >= minLen) runs.push(cur);
     return runs;
   }
 
   /* board: board[r][c] = null | {type, letter}
+   * minLen は難易度ごとの「成立する単語の最短文字数」（既定3）
    * 戻り値: [{word, cells, dir}] */
-  function findWords(board, rows, cols) {
+  function findWords(board, rows, cols, minLen) {
+    var min = Math.max(MIN_LEN, minLen || MIN_LEN);
     var results = [];
     var r, c, line;
 
@@ -117,8 +133,8 @@
         var cell = board[r][c];
         line.push(cell ? { letter: cell.letter, r: r, c: c } : null);
       }
-      collectRuns(line).forEach(function (run) {
-        scanRun(run).forEach(function (w) { w.dir = 'h'; results.push(w); });
+      collectRuns(line, min).forEach(function (run) {
+        scanRun(run, min).forEach(function (w) { w.dir = 'h'; results.push(w); });
       });
     }
 
@@ -128,8 +144,8 @@
         var cell2 = board[r][c];
         line.push(cell2 ? { letter: cell2.letter, r: r, c: c } : null);
       }
-      collectRuns(line).forEach(function (run) {
-        scanRun(run).forEach(function (w) { w.dir = 'v'; results.push(w); });
+      collectRuns(line, min).forEach(function (run) {
+        scanRun(run, min).forEach(function (w) { w.dir = 'v'; results.push(w); });
       });
     }
 

@@ -11,12 +11,12 @@ const fs = require('fs');
 const sandbox = { performance: { now: () => Date.now() }, Math, JSON, console };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
-['js/dictionary.js', 'js/meanings.js', 'js/words.js', 'js/tetromino.js', 'js/engine.js'].forEach((f) => {
+['js/dictionary.js', 'js/meanings.js', 'js/words.js', 'js/difficulty.js', 'js/tetromino.js', 'js/engine.js'].forEach((f) => {
   const src = fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
   vm.runInContext(src, sandbox, { filename: f });
 });
 
-const { Words, Tetromino, TetrisEngine } = sandbox;
+const { Words, Tetromino, TetrisEngine, Difficulty } = sandbox;
 
 let passed = 0;
 const failures = [];
@@ -35,8 +35,11 @@ function eq(a, b, msg) {
   if (a !== b) throw new Error((msg || 'not equal') + ': ' + JSON.stringify(a) + ' !== ' + JSON.stringify(b));
 }
 
-function newEngine(mode) {
-  const e = new TetrisEngine({ mode: mode || 'classic' });
+function newEngine(mode, difficulty) {
+  const e = new TetrisEngine({
+    mode: mode || 'classic',
+    difficulty: Difficulty.get(difficulty || 'normal')
+  });
   e.start();
   return e;
 }
@@ -368,6 +371,86 @@ check('CLASSIC を200手打っても落ちない', () => {
       assert(Number.isFinite(e.score), 'score=' + e.score);
     }
   }
+});
+
+console.log('\n— 難易度 / difficulty —');
+check('4段階そろっている', () => {
+  eq(Difficulty.ORDER.length, 4);
+  Difficulty.ORDER.forEach((k) => assert(Difficulty.LEVELS[k], k));
+});
+check('難しいほど落下が速くロックディレイが短い', () => {
+  const levels = Difficulty.ORDER.map((k) => Difficulty.get(k));
+  for (let i = 1; i < levels.length; i++) {
+    assert(levels[i].gravityScale > levels[i - 1].gravityScale, 'gravity ' + levels[i].key);
+    assert(levels[i].lockDelay < levels[i - 1].lockDelay, 'lockDelay ' + levels[i].key);
+    assert(levels[i].coinMult > levels[i - 1].coinMult, 'coinMult ' + levels[i].key);
+  }
+});
+check('EASY は NORMAL よりゆっくり落ちる', () => {
+  const easy = newEngine('classic', 'easy');
+  const hard = newEngine('classic', 'hard');
+  const start = easy.active.y;
+  easy.update(900);
+  hard.update(900);
+  assert(hard.active.y - start >= easy.active.y - start, 'hard の方が落ちていない');
+});
+check('EXPERT は NEXT が1個・ゴーストなし設定', () => {
+  const e = newEngine('classic', 'expert');
+  eq(e.queue.length, 1);
+  eq(e.nextCount, 1);
+  eq(Difficulty.get('expert').ghost, false);
+});
+check('HARD/EXPERT は開始レベルが上がる', () => {
+  eq(newEngine('classic', 'hard').level, 3);
+  eq(newEngine('classic', 'expert').level, 5);
+});
+check('EXPERT では3文字の単語が成立しない', () => {
+  const e = newEngine('word', 'expert');
+  writeWord(e, e.rows - 1, 2, 'cat');
+  eq(Words.findWords(e.board, e.rows, e.cols, e.diff.minWordLength).length, 0);
+  // 4文字ならちゃんと消える
+  const e2 = newEngine('word', 'expert');
+  writeWord(e2, e2.rows - 1, 2, 'bird');
+  eq(Words.findWords(e2.board, e2.rows, e2.cols, e2.diff.minWordLength)[0].word, 'bird');
+});
+check('EASY の方が母音を多く引く', () => {
+  const count = (bias) => {
+    let v = 0;
+    for (let i = 0; i < 3000; i++) {
+      Words.drawLetters(4, bias).forEach((c) => { if ('aeiou'.indexOf(c) >= 0) v++; });
+    }
+    return v;
+  };
+  const easy = count(Difficulty.get('easy').vowelBias);
+  const expert = count(Difficulty.get('expert').vowelBias);
+  assert(easy > expert * 1.1, easy + ' vs ' + expert);
+});
+check('難易度でコイン倍率がかかる', () => {
+  const make = (key) => {
+    const e = newEngine('word', key);
+    writeWord(e, e.rows - 1, 0, 'water');
+    e.beginResolve();
+    settle(e);
+    return e.coins;
+  };
+  assert(make('expert') > make('easy'), 'expert の方が少ない');
+});
+check('難易度を変えても得点が壊れない', () => {
+  Difficulty.ORDER.forEach((key) => {
+    ['classic', 'word'].forEach((m) => {
+      const e = newEngine(m, key);
+      let placed = 0;
+      while (e.phase !== 'over' && placed < 60) {
+        for (let i = 0, n = (Math.random() * 4) | 0; i < n; i++) e.rotate(1);
+        for (let i = 0, n = (Math.random() * 6) | 0; i < n; i++) e.move(Math.random() < 0.5 ? -1 : 1);
+        e.hardDrop();
+        settle(e);
+        placed++;
+        assert(Number.isFinite(e.score), key + '/' + m + ' score=' + e.score);
+        assert(Number.isFinite(e.coins), key + '/' + m + ' coins=' + e.coins);
+      }
+    });
+  });
 });
 
 console.log('\n— 結果 —');

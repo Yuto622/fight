@@ -15,7 +15,7 @@
   var HIDDEN = 2;
   var NEXT_COUNT = 5;
 
-  var LOCK_DELAY = 500;     // ms
+  var LOCK_DELAY = 500;     // ms（難易度で上書きされる既定値）
   var MAX_LOCK_RESETS = 15;
   var CLEAR_ANIM = 240;     // ms（ライン／単語の消去演出）
   var ENTRY_DELAY = 80;     // ms（ARE）
@@ -49,13 +49,16 @@
     this.hidden = HIDDEN;
     this.nextCount = NEXT_COUNT;
     this.mode = opts.mode || 'classic';
-    this.startLevel = opts.startLevel || 1;
-    this.reset(this.mode, this.startLevel);
+    this.diff = opts.difficulty || global.Difficulty.get('normal');
+    this.startLevel = opts.startLevel || this.diff.startLevel;
+    this.reset(this.mode, this.startLevel, this.diff);
   }
 
-  Engine.prototype.reset = function (mode, startLevel) {
+  Engine.prototype.reset = function (mode, startLevel, difficulty) {
     if (mode) this.mode = mode;
-    if (startLevel) this.startLevel = startLevel;
+    if (difficulty) this.diff = difficulty;
+    this.startLevel = startLevel || this.diff.startLevel;
+    this.nextCount = this.diff.nextCount;
 
     this.board = makeBoard();
     this.bag = [];
@@ -97,7 +100,7 @@
     this.resolveFirstStep = true;
     this.pendingTSpin = null;
 
-    for (var i = 0; i < NEXT_COUNT; i++) this.queue.push(this.nextFromBag());
+    for (var i = 0; i < this.nextCount; i++) this.queue.push(this.nextFromBag());
   };
 
   Engine.prototype.start = function () {
@@ -116,7 +119,10 @@
       }
     }
     var type = this.bag.pop();
-    return { type: type, letters: this.mode === 'word' ? global.Words.drawLetters(4) : null };
+    return {
+      type: type,
+      letters: this.mode === 'word' ? global.Words.drawLetters(4, this.diff.vowelBias) : null
+    };
   };
 
   Engine.prototype.makePiece = function (spec) {
@@ -184,6 +190,7 @@
     this.phase = 'over';
     this.emit('gameover', {
       reason: reason,
+      difficulty: this.diff.key,
       score: this.score,
       lines: this.lines,
       level: this.level,
@@ -280,7 +287,7 @@
   /* 単語モード: 落下中のミノの文字を引き直す（コイン消費は呼び出し側で判定） */
   Engine.prototype.rerollLetters = function () {
     if (!this.canAct() || this.mode !== 'word' || !this.active.letters) return false;
-    this.active.letters = global.Words.drawLetters(4);
+    this.active.letters = global.Words.drawLetters(4, this.diff.vowelBias);
     this.emit('reroll', {});
     return true;
   };
@@ -353,7 +360,7 @@
   /* 次に消すもの（単語 → ライン の順）を探す */
   Engine.prototype.findClear = function () {
     if (this.mode === 'word') {
-      var words = global.Words.findWords(this.board, ROWS, COLS);
+      var words = global.Words.findWords(this.board, ROWS, COLS, this.diff.minWordLength);
       if (words.length) {
         var set = Object.create(null);
         var cells = [];
@@ -409,7 +416,7 @@
     var entries = [];
 
     step.words.forEach(function (w) {
-      var coins = global.Words.coinsFor(w.word, self.chain);
+      var coins = Math.max(1, Math.round(global.Words.coinsFor(w.word, self.chain) * self.diff.coinMult));
       gained += coins;
       var entry = {
         word: w.word,
@@ -483,12 +490,12 @@
     if (difficult && this.backToBack && n > 0) { base = Math.floor(base * 1.5); b2b = true; }
     if (n > 0) this.backToBack = difficult;
 
-    var gained = base * this.level;
+    var gained = Math.round(base * this.level * this.diff.scoreMult);
 
     // コンボ（1ミノにつき1回だけ加算）
     if (n > 0 && this.pieceClearedLines === 0) {
       this.combo++;
-      if (this.combo > 0) gained += 50 * this.combo * this.level;
+      if (this.combo > 0) gained += Math.round(50 * this.combo * this.level * this.diff.scoreMult);
     }
     this.pieceClearedLines += n;
 
@@ -514,14 +521,14 @@
     var perfect = empty && n > 0;
     if (perfect) {
       var pc = (n >= 4 && b2b) ? 3200 : PERFECT_SCORE[Math.min(n, 4)];
-      gained += pc * this.level;
+      gained += Math.round(pc * this.level * this.diff.scoreMult);
     }
 
     this.score += gained;
 
     // 単語モードでもライン消去でコインが少し貯まる
     if (this.mode === 'word' && n > 0) {
-      var lineCoins = n * n * 5;
+      var lineCoins = Math.round(n * n * 5 * this.diff.coinMult);
       this.coins += lineCoins;
     }
 
@@ -565,8 +572,8 @@
 
     if (this.phase !== 'falling' || !this.active) return;
 
-    var interval = gravityMs(this.level);
-    if (this.softDropping) interval = Math.min(interval, Math.max(gravityMs(this.level) / 20, 12));
+    var interval = gravityMs(this.level) / this.diff.gravityScale;
+    if (this.softDropping) interval = Math.min(interval, Math.max(interval / 20, 12));
 
     this.gravityAcc += dt;
     while (this.gravityAcc >= interval && this.phase === 'falling') {
@@ -586,7 +593,7 @@
 
     if (this.grounded) {
       this.lockTimer += dt;
-      if (this.lockTimer >= LOCK_DELAY) this.lockPiece();
+      if (this.lockTimer >= this.diff.lockDelay) this.lockPiece();
     }
   };
 

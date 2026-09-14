@@ -35,6 +35,12 @@
     sizeCanvas(this.canvas, engine.cols * CELL, visible * CELL, dpr);
     sizeCanvas(this.holdCanvas, 4 * CELL, 3 * CELL, dpr);
     sizeCanvas(this.nextCanvas, 3.4 * CELL, (engine.nextCount * 2.2 + 0.4) * CELL, dpr);
+
+    // NEXT の表示数は難易度で変わるので、枠の高さも中身に合わせる
+    var compact = (global.innerWidth || 1024) <= 760;
+    var per = compact ? 40 : 54;
+    this.holdCanvas.style.height = (compact ? 58 : 74) + 'px';
+    this.nextCanvas.style.height = Math.min(engine.nextCount * per + 14, compact ? 160 : 320) + 'px';
     this.dpr = dpr;
   };
 

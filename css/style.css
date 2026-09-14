@@ -66,6 +66,23 @@ body { display: flex; flex-direction: column; min-height: 100vh; padding: 10px 1
 }
 .mode-btn.is-active span { color: rgba(4, 18, 31, 0.75); }
 
+.diffs { display: flex; align-items: center; gap: 5px; }
+.diffs-label { white-space: nowrap; font-size: 9px; letter-spacing: 0.12em; color: var(--muted); margin-right: 2px; }
+.diff-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+  padding: 6px 10px; cursor: pointer; color: var(--muted);
+  background: rgba(10, 16, 32, 0.6); border: 1px solid var(--line); border-radius: 9px;
+  font-family: inherit; font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  transition: 0.16s; line-height: 1.25;
+}
+.diff-btn small { font-size: 9px; font-weight: 500; opacity: 0.8; }
+.diff-btn:hover { color: var(--text); border-color: rgba(52, 211, 153, 0.5); }
+.diff-btn.is-active { color: #04121f; border-color: transparent; background: linear-gradient(135deg, var(--green), #a3e635); }
+.diff-btn.is-active small { color: rgba(4, 18, 31, 0.75); }
+.diff-btn[data-difficulty="hard"].is-active { background: linear-gradient(135deg, #fbbf24, #fb923c); }
+.diff-btn[data-difficulty="expert"].is-active { background: linear-gradient(135deg, #fb7185, #ef4444); color: #fff; }
+.diff-btn[data-difficulty="expert"].is-active small { color: rgba(255, 255, 255, 0.8); }
+
 .wallet {
   display: flex; align-items: center; gap: 9px;
   padding: 7px 14px; border-radius: 10px;
@@ -102,11 +119,7 @@ body { display: flex; flex-direction: column; min-height: 100vh; padding: 10px 1
 }
 .hint { margin: 7px 0 0; font-size: 10px; color: var(--muted); text-align: center; }
 .mini-canvas { display: block; margin: 0 auto; width: auto; max-width: 100%; }
-#hold { height: 74px; }
-#next { height: min(38vh, 310px); }
-@media (max-width: 760px) {
-  #next { height: 150px; }
-}
+/* #hold / #next の高さは renderer.resize() が NEXT の表示数に合わせて決める */
 
 .stats { display: grid; gap: 7px; }
 .stat { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
@@ -157,6 +170,13 @@ body { display: flex; flex-direction: column; min-height: 100vh; padding: 10px 1
 .overlay .result { display: grid; gap: 4px; margin: 12px 0; font-size: 12px; }
 .overlay .result div { display: flex; justify-content: space-between; gap: 18px; }
 .overlay .result b { color: var(--text); }
+.overlay .diff-line { color: var(--text); font-size: 12px; }
+.overlay .diff-line b { color: var(--green); letter-spacing: 0.08em; }
+.overlay .diff-table {
+  max-width: 260px; margin: 12px auto; padding: 10px 12px; border-radius: 10px;
+  background: rgba(10, 16, 32, 0.6); border: 1px solid var(--line);
+}
+.overlay .diff-table span { color: var(--muted); }
 
 .action-btn {
   position: relative; width: 100%; padding: 10px 12px; cursor: pointer;
@@ -256,6 +276,9 @@ body[data-mode="word"] .classic-only { display: none; }
 }
 @media (max-width: 760px) {
   body { padding: 8px 10px 14px; }
+  .diffs-label { display: none; }
+  .diff-btn { padding: 5px 8px; font-size: 10px; }
+  .diff-btn small { display: none; }
   .layout { grid-template-columns: minmax(0, 1fr); }
   .panel { flex-direction: row; flex-wrap: wrap; }
   .panel .box { flex: 1 1 150px; }
