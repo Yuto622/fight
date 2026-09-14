@@ -162,6 +162,9 @@ function show(element, visible) {
 
 function openTitle() {
   if (session) {
+    // Walking away from a run still banks what it earned -- coins you played
+    // for should not evaporate because you went back to the menu.
+    bankSession();
     session.input.detach();
     session = null;
   }
@@ -210,7 +213,7 @@ function startGame(mode) {
 
   dom.players[1].hidden = true;
   const sides = [];
-  session = { mode, versus, sides, paused: false, finished: false, input: null };
+  session = { mode, versus, sides, paused: false, finished: false, banked: false, input: null };
 
   sides.push(createSide(dom.players[0], { mode, settings, seed, versus, cpu: false }));
   if (versus) {
@@ -242,6 +245,30 @@ function togglePause(force) {
   lastFrame = performance.now();
 }
 
+/**
+ * Writes the current run into the profile.  Safe to call more than once: only
+ * the first call for a given session counts, so topping out and then going
+ * back to the menu does not bank the same coins twice.
+ *
+ * @param {boolean|null} won null outside versus
+ * @returns {object|null} what the profile made of it
+ */
+function bankSession(won = null) {
+  if (!session || session.banked) return null;
+  const player = session.sides[0];
+  const game = player.game;
+  if (game.score === 0 && game.coins === 0 && won === null) return null;
+  session.banked = true;
+  return profile.record({
+    mode: session.mode,
+    score: game.score,
+    coins: game.coins,
+    maxChain: game.maxChain,
+    words: game.wordLog,
+    won,
+  });
+}
+
 /** @param {object} side whichever field just topped out */
 function finishGame(side) {
   if (!session || session.finished) return;
@@ -254,14 +281,8 @@ function finishGame(side) {
   const playerLost = side === player;
   const won = session.versus ? !playerLost : null;
 
-  const banked = profile.record({
-    mode: session.mode,
-    score: player.game.score,
-    coins: player.game.coins,
-    maxChain: player.game.maxChain,
-    words: player.game.wordLog,
-    won,
-  });
+  const banked = bankSession(won)
+    || { coins: profile.coins(), newWords: [], isBest: false };
 
   renderResults(player, { won, banked });
   show(dom.gameOver, true);

@@ -1,3 +1,4 @@
 node_modules/
+dist/*.zip
 npm-debug.log*
 .DS_Store

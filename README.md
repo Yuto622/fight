@@ -13,11 +13,15 @@ Two games share one engine:
 
 ```
 npm start          # then open http://localhost:8080
-npm test           # 76 engine tests, no browser needed
+npm test           # 77 engine tests, no browser needed
 ```
 
 No build step and no runtime dependencies: it is plain ES modules, so any
 static file server works.
+
+**Just want to play?** `dist/puyo-uspeak.html` is the whole game in one file —
+open it in a browser, no server and no install. Rebuild it with
+`npm run build:standalone` after changing anything in `src/`.
 
 ## Controls
 
@@ -138,6 +142,7 @@ src/
   storage.js       coins, high scores, word book, settings
 tools/
   build-dictionary.mjs   regenerates src/data/dictionary.js
+  build-standalone.mjs   inlines everything into dist/puyo-uspeak.html
   serve.mjs              the dev server behind `npm start`
 tests/                   node:test, run with `npm test`
 ```
