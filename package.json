@@ -1,0 +1,11 @@
+{
+  "name": "uspeak-tetris",
+  "version": "1.0.0",
+  "description": "テトリス本家準拠の実装と、アルファベットのブロックで英単語を作る WORD モード（U-Speak コイン）",
+  "private": true,
+  "scripts": {
+    "test": "node tests/engine.test.js",
+    "start": "python3 -m http.server 8000"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>U-SPEAK TETRIS — テトリス × 英単語</title>
+<meta name="description" content="ガイドライン準拠のテトリスと、アルファベットのブロックで英単語を作って U-Speak コインを貯める WORD モード。">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">U</span>
+    <div class="brand-text">
+      <h1>U-SPEAK TETRIS</h1>
+      <p>テトリス × 英単語 — 長い単語ほど高得点</p>
+    </div>
+  </div>
+
+  <div class="modes" role="tablist" aria-label="モード選択">
+    <button class="mode-btn is-active" data-mode="classic" role="tab" aria-selected="true">
+      <strong>CLASSIC</strong><span>本家準拠テトリス</span>
+    </button>
+    <button class="mode-btn" data-mode="word" role="tab" aria-selected="false">
+      <strong>WORD</strong><span>英単語モード</span>
+    </button>
+  </div>
+
+  <div class="wallet" title="これまでに貯めた U-Speak コインの合計">
+    <span class="coin-icon">◉</span>
+    <div>
+      <b id="wallet-total">0</b>
+      <small>U-SPEAK COINS</small>
+    </div>
+  </div>
+
+  <div class="topbar-actions">
+    <button id="btn-sound" class="icon-btn" title="サウンド切り替え (M)">♪</button>
+    <button id="btn-settings" class="icon-btn" title="設定">⚙</button>
+  </div>
+</header>
+
+<main class="layout">
+  <!-- 左パネル -->
+  <aside class="panel panel-left">
+    <section class="box">
+      <h2>HOLD</h2>
+      <canvas id="hold" class="mini-canvas"></canvas>
+      <p class="hint">C / Shift</p>
+    </section>
+
+    <section class="box stats">
+      <div class="stat"><span>SCORE</span><b id="stat-score">0</b></div>
+      <div class="stat"><span>LEVEL</span><b id="stat-level">1</b></div>
+      <div class="stat"><span>LINES</span><b id="stat-lines">0</b></div>
+      <div class="stat"><span>TIME</span><b id="stat-time">0:00</b></div>
+      <div class="stat"><span>BEST</span><b id="stat-best">0</b></div>
+    </section>
+
+    <section class="box word-only" id="box-reroll">
+      <h2>LETTER REROLL</h2>
+      <button id="btn-reroll" class="action-btn">文字を引き直す <em>R</em><span class="cost">◉15</span></button>
+      <p class="hint">落下中のミノの4文字を引き直します</p>
+    </section>
+  </aside>
+
+  <!-- 盤面 -->
+  <div class="board-area">
+    <div class="board-shell">
+      <canvas id="board"></canvas>
+      <div id="toasts" class="toasts" aria-live="polite"></div>
+      <div id="overlay" class="overlay"></div>
+    </div>
+    <div class="touch-controls" id="touch">
+      <button class="pad" data-action="left">◀</button>
+      <button class="pad" data-action="rotateCCW">⟲</button>
+      <button class="pad" data-action="softDrop">▼</button>
+      <button class="pad" data-action="rotateCW">⟳</button>
+      <button class="pad" data-action="right">▶</button>
+      <button class="pad wide" data-action="hardDrop">HARD DROP</button>
+      <button class="pad" data-action="hold">HOLD</button>
+      <button class="pad word-only" data-action="reroll">REROLL</button>
+    </div>
+  </div>
+
+  <!-- 右パネル -->
+  <aside class="panel panel-right">
+    <section class="box">
+      <h2>NEXT</h2>
+      <canvas id="next" class="mini-canvas"></canvas>
+    </section>
+
+    <section class="box word-only" id="box-words">
+      <h2>WORDS</h2>
+      <div class="coin-row">
+        <div><span>この試合</span><b id="run-coins">0</b></div>
+        <div><span>単語数</span><b id="run-words">0</b></div>
+      </div>
+      <div class="best-word" id="best-word">
+        <span>最長単語</span>
+        <b>—</b>
+      </div>
+      <ul id="word-log" class="word-log"></ul>
+    </section>
+
+    <section class="box classic-only" id="box-classic-info">
+      <h2>SCORING</h2>
+      <ul class="rule-list">
+        <li><span>SINGLE</span><b>100 × Lv</b></li>
+        <li><span>DOUBLE</span><b>300 × Lv</b></li>
+        <li><span>TRIPLE</span><b>500 × Lv</b></li>
+        <li><span>TETRIS</span><b>800 × Lv</b></li>
+        <li><span>T-SPIN</span><b>400〜1600 × Lv</b></li>
+        <li><span>B2B</span><b>× 1.5</b></li>
+        <li><span>COMBO</span><b>50 × combo × Lv</b></li>
+        <li><span>PERFECT</span><b>+800〜3200</b></li>
+      </ul>
+    </section>
+  </aside>
+</main>
+
+<footer class="keyhelp">
+  <span><kbd>←</kbd><kbd>→</kbd> 移動</span>
+  <span><kbd>↓</kbd> ソフトドロップ</span>
+  <span><kbd>Space</kbd> ハードドロップ</span>
+  <span><kbd>↑</kbd>/<kbd>X</kbd> 右回転</span>
+  <span><kbd>Z</kbd> 左回転</span>
+  <span><kbd>Q</kbd> 180°</span>
+  <span><kbd>C</kbd> ホールド</span>
+  <span><kbd>R</kbd> 文字引き直し</span>
+  <span><kbd>P</kbd> ポーズ</span>
+</footer>
+
+<!-- 設定 -->
+<div id="settings" class="modal" hidden>
+  <div class="modal-card">
+    <h2>SETTINGS</h2>
+    <label class="field">
+      <span>DAS（横溜め）<b id="das-value">150</b> ms</span>
+      <input id="das" type="range" min="40" max="300" step="5" value="150">
+    </label>
+    <label class="field">
+      <span>ARR（連射間隔）<b id="arr-value">33</b> ms</span>
+      <input id="arr" type="range" min="0" max="120" step="1" value="33">
+    </label>
+    <label class="field">
+      <span>開始レベル <b id="level-value">1</b></span>
+      <input id="start-level" type="range" min="1" max="15" step="1" value="1">
+    </label>
+    <label class="check"><input id="ghost" type="checkbox" checked> ゴーストを表示</label>
+    <div class="modal-actions">
+      <button id="settings-close" class="action-btn">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/dictionary.js"></script>
+<script src="js/meanings.js"></script>
+<script src="js/words.js"></script>
+<script src="js/tetromino.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/renderer.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/input.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
